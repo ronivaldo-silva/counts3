@@ -9,7 +9,7 @@ import os
 load_dotenv()
 
 HOST = os.getenv("HOST", '0.0.0.0')
-PORT = int(os.getenv("PORT", '8080'))
+PORT = int(os.getenv("PORT", '10000'))
 
 async def main(page: ft.Page):
     # Cria os recursos de banco locais e injeta dados básicos se virgem

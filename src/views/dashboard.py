@@ -1,15 +1,17 @@
+from turtle import pen
 import flet as ft
 from gears.db_control import DBControl
 from gears.asaas_control import Asaas
+from models.db_models import Registro
 from datetime import datetime
 import asyncio
 
 # --- Registros do Banco ---
 class RegistroCard(ft.Card):
     """Cartão que exibe os dados de uma dívida comum."""
-    def __init__(self, registro_dict: dict, on_pagar_click):
+    def __init__(self, registro: Registro, on_pagar_click):
         super().__init__()
-        self.data = registro_dict
+        self.data: Registro = registro
         self.on_pagar_click = on_pagar_click
         
         self.elevation = 2
@@ -53,10 +55,10 @@ class RegistroCard(ft.Card):
         )
 
     def __definir_valores(self):
-        categoria = self.data.get("categoria", "")
-        classificacao = self.data.get("classificacao", "")
-        valor = f"R$ {self.data.get('valor', 0):,.2f}"
-        data_divida = self.data.get("data_divida", "")
+        categoria = self.data.categoria_rel.categoria
+        classificacao = self.data.classificacao_rel.classificacao
+        valor = f"R$ {self.data.valor:,.2f}"
+        data_divida = self.data.data_debito.strftime("%d/%m/%Y")
 
         cor = ft.Colors.GREEN_300 if classificacao == "Pago" else ft.Colors.RED_300
         
@@ -112,7 +114,7 @@ class TabRegistros(ft.Column):
         self.carregar_dividas()
 
     def carregar_dividas(self):
-        dividas_reais = DBControl.get_registros_por_cpf(self.cpf)
+        dividas_reais = DBControl.get_registros_por_cpf(self.cpf, pendente=True)
         
         self.controls = []
         
@@ -126,18 +128,18 @@ class TabRegistros(ft.Column):
         else:
             for d in dividas_reais:
                 # Filtrar apenas o que o usuário precisa pagar ou visualizar
-                self.controls.append(RegistroCard(registro_dict=d, on_pagar_click=self.pagar_divida))
+                self.controls.append(RegistroCard(registro=d, on_pagar_click=self.pagar_divida))
 
     def atualizar(self):
         self.carregar_dividas()
         self.update()
 
-    def pagar_divida(self, data):
+    def pagar_divida(self, data:Registro):
         # Lógica de pagamento provisória para dívida comum
         self.page.show_dialog(
             ft.AlertDialog(
                 title=ft.Text("Aviso"),
-                content=ft.Text(f"Dívidas comuns devem ser tratadas diretamente com a administração.\n\nDetalhes:\n{data.get('titulo')} - R$ {data.get('valor')}"),
+                content=ft.Text(f"Aqui será mostrado um QR-Code Comum.\n\nDetalhes:\n{data.categoria_rel.categoria} - R$ {data.valor:,.2f}"),
                 actions=[ft.TextButton("Entendi", on_click=lambda e: self.page.pop_dialog())]
             )
         )
