@@ -9,7 +9,7 @@ import os
 load_dotenv()
 
 HOST = os.getenv("HOST", '0.0.0.0')
-PORT = int(os.getenv("PORT", '8500'))
+PORT = int(os.getenv("PORT", '8080'))
 
 async def main(page: ft.Page):
     # Cria os recursos de banco locais e injeta dados básicos se virgem
@@ -55,4 +55,4 @@ async def main(page: ft.Page):
         await page.push_route(page.route)
 
 if __name__ == "__main__":
-    ft.run(main=main, name="Counts3", view=ft.AppView.WEB_BROWSER, host=HOST, port=PORT)
+    ft.run(main=main, view=ft.AppView.WEB_BROWSER, host=HOST, port=PORT)
