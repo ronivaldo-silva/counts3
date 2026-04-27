@@ -3,6 +3,13 @@ from views.login import Login
 from views.dashboard import Dashboard
 from views.managment import Managment
 from database.config import seed_basic_data
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+HOST = os.getenv("HOST", '0.0.0.0')
+PORT = int(os.getenv("PORT", '8500'))
 
 async def main(page: ft.Page):
     # Cria os recursos de banco locais e injeta dados básicos se virgem
@@ -48,4 +55,4 @@ async def main(page: ft.Page):
         await page.push_route(page.route)
 
 if __name__ == "__main__":
-    ft.run(main=main)
+    ft.run(main=main, name="Counts3", view=ft.AppView.WEB_BROWSER, host=HOST, port=PORT)
