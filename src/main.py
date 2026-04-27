@@ -1,6 +1,6 @@
 import flet as ft
 from views.login import Login
-from views.dashboard import DashboardComum, DashboardAsaas, Dashboard
+from views.dashboard import Dashboard
 from views.managment import Managment
 from database.config import seed_basic_data
 
@@ -24,12 +24,6 @@ async def main(page: ft.Page):
         elif troute.match("/dashboard/:cpf"):
             page.views.append(Dashboard(cpf=troute.cpf))
             
-        elif troute.match("/dashboard_asaas/:cpf"):
-            page.views.append(DashboardAsaas(cpf=troute.cpf))
-        
-        elif troute.match("/dashboard_comum/:cpf"):
-            page.views.append(DashboardComum(cpf=troute.cpf))
-        
         elif troute.match("/managment"):
             page.views.append(Managment())
         

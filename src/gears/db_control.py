@@ -224,45 +224,6 @@ class DBControl:
                 return True, "Usuário cadastrado com sucesso!"
         except Exception as e:
             return False, f"Erro inesperado: {str(e)}"
-            
-    @staticmethod
-    def get_registros_por_cpf(cpf: str):
-        """
-        Recupera os registros do banco de dados filtrando pelo CPF do usuário.
-        """
-        with SessionLocal() as db:
-            stmt = (
-                select(Registro, Categoria)
-                .join(Usuario, Registro.user_id == Usuario.id)
-                .join(Categoria, Registro.category_id == Categoria.id)
-                .where(Usuario.cpf == cpf, Usuario.deleted == False)
-                .order_by(Registro.data_debito.desc().nulls_last())
-            )
-            resultados = db.execute(stmt).all()
-            
-            registros_formatados = []
-            for reg, cat in resultados:
-                # Tenta formatar a data que estiver disponível
-                data_exibicao = "N/A"
-                if reg.data_debito:
-                    data_exibicao = reg.data_debito.strftime("%d/%m/%Y")
-                elif reg.data_prevista:
-                    data_exibicao = reg.data_prevista.strftime("%d/%m/%Y")
-                elif reg.data_entrada:
-                    data_exibicao = reg.data_entrada.strftime("%d/%m/%Y")
-                
-                titulo = f"Registro #{reg.id} - {cat.categoria}"
-
-                registros_formatados.append({
-                    "id": reg.id,
-                    "titulo": titulo,
-                    "valor": reg.valor,
-                    "data_divida": data_exibicao,
-                    "categoria": cat.categoria,
-                    "type_id": reg.type_id,
-                    "saldo": reg.saldo
-                })
-            return registros_formatados
 
     @staticmethod
     def criar_registro(user_id: int, category_id: int, valor: float, data_debito: date, data_prevista: date, type_id: int = 0):
@@ -303,6 +264,19 @@ class DBControl:
             return False, f"Erro ao atualizar registro: {str(e)}"
     
     @staticmethod
+    def quitar_registro(id_registro: int):
+        try:
+            with SessionLocal() as db:
+                registro = db.scalar(select(Registro).where(Registro.id == id_registro))
+                if registro:
+                    registro.classificacao_id = 3
+                    db.commit()
+                    return True, "Registro quitado com sucesso!"
+                return False, "Registro não encontrado."
+        except Exception as e:
+            return False, f"Erro ao quitar registro: {str(e)}"
+    
+    @staticmethod
     def get_todos_registros() -> list[Registro]:
         """
         Retorna todos os Registros do banco com eager load dos relacionamentos
@@ -323,6 +297,81 @@ class DBControl:
             for reg in registros:
                 db.expunge(reg)
             return registros
+            
+    @staticmethod
+    def get_registros_por_cpf(cpf: str, pendente: bool = False, vencimento: date = None):
+        """
+        Recupera os registros do banco de dados filtrando pelo CPF do usuário.
+        """
+        with SessionLocal() as db:
+            stmt = (
+                select(Registro)
+                .join(Usuario, Registro.user_id == Usuario.id)
+                .options(
+                    joinedload(Registro.usuario),
+                    joinedload(Registro.categoria_rel),
+                    joinedload(Registro.classificacao_rel)
+                )
+                .where(Usuario.cpf == cpf, Usuario.deleted == False)
+                .order_by(Registro.data_debito.desc().nulls_last())
+            )
+            
+            if pendente:
+                stmt = stmt.where(Registro.classificacao_id == 1)
+            if vencimento:
+                stmt = stmt.where(Registro.data_prevista <= vencimento)
+            
+            registros = db.scalars(stmt).unique().all()
+            for reg in registros:
+                db.expunge(reg)
+                
+            return list(registros)
+    
+            
+    @staticmethod
+    def get_registros_por_cpf_deprecated(cpf: str, pendente: bool = False, vencimento: date = None):
+        """
+        Recupera os registros do banco de dados filtrando pelo CPF do usuário.
+        """
+        with SessionLocal() as db:
+            stmt = (
+                select(Registro, Categoria)
+                .join(Usuario, Registro.user_id == Usuario.id)
+                .join(Categoria, Registro.category_id == Categoria.id)
+                .join(Classificacao, Registro.classificacao_id == Classificacao.id)
+                .where(Usuario.cpf == cpf, Usuario.deleted == False)
+                .order_by(Registro.data_debito.asc().nulls_last())
+            )
+            if pendente:
+                stmt = stmt.where(Registro.pendente == True)
+            if vencimento:
+                stmt = stmt.where(Registro.data_prevista <= vencimento)
+            
+            resultados = db.execute(stmt).all()
+            
+            registros_formatados = []
+            for reg, cat in resultados:
+                # Tenta formatar a data que estiver disponível
+                data_exibicao = "N/A"
+                if reg.data_debito:
+                    data_exibicao = reg.data_debito.strftime("%d/%m/%Y")
+                elif reg.data_prevista:
+                    data_exibicao = reg.data_prevista.strftime("%d/%m/%Y")
+                elif reg.data_entrada:
+                    data_exibicao = reg.data_entrada.strftime("%d/%m/%Y")
+                
+                titulo = f"Registro #{reg.id} - {cat.categoria}"
+
+                registros_formatados.append({
+                    "id": reg.id,
+                    "titulo": titulo,
+                    "valor": reg.valor,
+                    "data_divida": data_exibicao,
+                    "categoria": cat.categoria,
+                    "type_id": reg.type_id,
+                    "saldo": reg.saldo
+                })
+            return registros_formatados
     
     @staticmethod
     def get_registro_por_id(id: int):
@@ -357,16 +406,3 @@ class DBControl:
                 return False, "Registro não encontrado."
         except Exception as e:
             return False, f"Erro ao deletar registro: {str(e)}"
-    
-    @staticmethod
-    def quitar_registro(id_registro: int):
-        try:
-            with SessionLocal() as db:
-                registro = db.scalar(select(Registro).where(Registro.id == id_registro))
-                if registro:
-                    registro.classificacao_id = 3
-                    db.commit()
-                    return True, "Registro quitado com sucesso!"
-                return False, "Registro não encontrado."
-        except Exception as e:
-            return False, f"Erro ao quitar registro: {str(e)}"
