@@ -1,7 +1,8 @@
 from sqlalchemy import select, text
 from sqlalchemy.orm import joinedload, make_transient
 from database.config import SessionLocal, engine
-from database.models import Usuario, Registro, Categoria, Classificacao
+from models.db_models import Usuario, Registro, Categoria, Classificacao
+from datetime import date
 
 class DBControl:
     """
@@ -31,11 +32,104 @@ class DBControl:
     @staticmethod
     def get_all_usuarios():
         with SessionLocal() as db:
-            stmt = select(Usuario)
+            stmt = select(Usuario).where(Usuario.deleted == False)
             
-            usuarios = db.scalar(stmt)
+            usuarios = db.scalars(stmt).all()
+            for u in usuarios:
+                db.expunge(u)
         
         return usuarios
+
+    @staticmethod
+    def get_usuario_por_id(id_usuario: int):
+        with SessionLocal() as db:
+            stmt = select(Usuario).where(Usuario.id == id_usuario)
+            usuario = db.scalar(stmt)
+            if usuario:
+                db.expunge(usuario)
+            return usuario
+
+    @staticmethod
+    def atualizar_usuario(id_usuario: int, cpf: str, nome: str, senha: str, is_admin: bool, actived: bool):
+        try:
+            with SessionLocal() as db:
+                usuario = db.scalar(select(Usuario).where(Usuario.id == id_usuario))
+                if usuario:
+                    usuario.cpf = cpf
+                    usuario.nome = nome
+                    if senha:
+                        usuario.senha = senha
+                    usuario.is_admin = is_admin
+                    usuario.actived = actived
+                    db.commit()
+                    return True, "Usuário atualizado com sucesso!"
+                return False, "Usuário não encontrado."
+        except Exception as e:
+            return False, f"Erro ao atualizar usuário: {str(e)}"
+
+    @staticmethod
+    def criar_usuario_completo(cpf: str, nome: str, senha: str, is_admin: bool, actived: bool):
+        try:
+            with SessionLocal() as db:
+                existe = db.scalar(select(Usuario).where(Usuario.cpf == cpf))
+                if existe:
+                    return False, "CPF já cadastrado."
+                novo_usuario = Usuario(
+                    cpf=cpf,
+                    nome=nome,
+                    senha=senha,
+                    is_admin=is_admin,
+                    actived=actived
+                )
+                db.add(novo_usuario)
+                db.commit()
+                return True, "Usuário cadastrado com sucesso!"
+        except Exception as e:
+            return False, f"Erro inesperado: {str(e)}"
+
+    @staticmethod
+    def deletar_usuario(id_usuario: int):
+        try:
+            with SessionLocal() as db:
+                usuario = db.scalar(select(Usuario).where(Usuario.id == id_usuario))
+                if usuario:
+                    usuario.deleted = True # soft delete
+                    db.commit()
+                    return True, "Usuário deletado com sucesso!"
+                return False, "Usuário não encontrado."
+        except Exception as e:
+            return False, f"Erro ao deletar usuário: {str(e)}"
+            
+    @staticmethod
+    def toggle_status_usuario(id_usuario: int):
+        try:
+            with SessionLocal() as db:
+                usuario = db.scalar(select(Usuario).where(Usuario.id == id_usuario))
+                if usuario:
+                    usuario.actived = not usuario.actived
+                    db.commit()
+                    return True, "Status alterado com sucesso!"
+                return False, "Usuário não encontrado."
+        except Exception as e:
+            return False, f"Erro ao alterar status: {str(e)}"
+
+    @staticmethod
+    def get_all_categorias():
+        with SessionLocal() as db:
+            stmt = select(Categoria)
+            categorias = db.scalars(stmt).all()
+            for c in categorias:
+                db.expunge(c)
+        return categorias
+
+    @staticmethod
+    def get_all_classificacoes():
+        with SessionLocal() as db:
+            stmt = select(Classificacao)
+            classificacoes = db.scalars(stmt).all()
+            for c in classificacoes:
+                db.expunge(c)
+        return classificacoes
 
     @staticmethod
     def get_usuario_por_cpf(cpf: str):
@@ -170,8 +264,44 @@ class DBControl:
                 })
             return registros_formatados
 
-    # Adicione futuras consultas aqui (ex: salvar_transacao, etc.)
+    @staticmethod
+    def criar_registro(user_id: int, category_id: int, valor: float, data_debito: date, data_prevista: date, type_id: int = 0):
+        try:
+            with SessionLocal() as db:
+                novo_registro = Registro(
+                    user_id=user_id,
+                    type_id=type_id,
+                    category_id=category_id,
+                    valor=valor,
+                    data_debito=data_debito,
+                    data_prevista=data_prevista,
+                    saldo=valor, # Initialize balance as full value
+                    classificacao_id=1 # Pendente by default
+                )
+                db.add(novo_registro)
+                db.commit()
+                return True, "Registro criado com sucesso!"
+        except Exception as e:
+            return False, f"Erro ao criar registro: {str(e)}"
 
+    @staticmethod
+    def atualizar_registro(id_registro: int, user_id: int, category_id: int, valor: float, data_debito: date, data_prevista: date, classificacao_id: int):
+        try:
+            with SessionLocal() as db:
+                registro = db.scalar(select(Registro).where(Registro.id == id_registro))
+                if registro:
+                    registro.user_id = user_id
+                    registro.category_id = category_id
+                    registro.valor = valor
+                    registro.data_debito = data_debito
+                    registro.data_prevista = data_prevista
+                    registro.classificacao_id = classificacao_id
+                    db.commit()
+                    return True, "Registro atualizado com sucesso!"
+                return False, "Registro não encontrado."
+        except Exception as e:
+            return False, f"Erro ao atualizar registro: {str(e)}"
+    
     @staticmethod
     def get_todos_registros() -> list[Registro]:
         """
@@ -193,3 +323,50 @@ class DBControl:
             for reg in registros:
                 db.expunge(reg)
             return registros
+    
+    @staticmethod
+    def get_registro_por_id(id: int):
+        """
+        Retorna um Registro do banco com eager load dos relacionamentos
+        (usuario, categoria_rel, classificacao_rel), seguro para uso fora da sessão.
+        """
+        with SessionLocal() as db:
+            stmt = (
+                select(Registro)
+                .options(
+                    joinedload(Registro.usuario),
+                    joinedload(Registro.categoria_rel),
+                    joinedload(Registro.classificacao_rel),
+                )
+                .where(Registro.id == id)
+            )
+            registro = db.scalar(stmt)
+            if registro:
+                db.expunge(registro)
+            return registro
+    
+    @staticmethod
+    def deletar_registro(id_registro: int):
+        try:
+            with SessionLocal() as db:
+                registro = db.scalar(select(Registro).where(Registro.id == id_registro))
+                if registro:
+                    db.delete(registro)
+                    db.commit()
+                    return True, "Registro deletado com sucesso!"
+                return False, "Registro não encontrado."
+        except Exception as e:
+            return False, f"Erro ao deletar registro: {str(e)}"
+    
+    @staticmethod
+    def quitar_registro(id_registro: int):
+        try:
+            with SessionLocal() as db:
+                registro = db.scalar(select(Registro).where(Registro.id == id_registro))
+                if registro:
+                    registro.classificacao_id = 3
+                    db.commit()
+                    return True, "Registro quitado com sucesso!"
+                return False, "Registro não encontrado."
+        except Exception as e:
+            return False, f"Erro ao quitar registro: {str(e)}"

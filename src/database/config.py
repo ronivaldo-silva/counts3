@@ -50,7 +50,7 @@ def seed_basic_data():
     Esta função é chamada automaticamente no startup da aplicação.
     """
     # Import here to avoid circular dependency
-    from database.models import Usuario, Categoria, Classificacao
+    from models.db_models import Usuario, Categoria, Classificacao
     
     # Instrução Mágica Local: Cria o arquivo .db e as tabelas com colunas caso não existam
     Base.metadata.create_all(bind=engine)

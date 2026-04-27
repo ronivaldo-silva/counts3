@@ -252,7 +252,7 @@ class Login(ft.View):
             
             # Chama a view dashboard caso o login com usuário não administrador
             if not usuario.get("is_admin"):
-                await self.page.push_route(f"/dashboard_asaas/{cpf}")
+                await self.page.push_route(f"/dashboard_comum/{cpf}")
             else:
                 await self.page.push_route("/managment")
             

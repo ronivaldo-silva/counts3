@@ -45,6 +45,7 @@ class Registro(ft.Card):
             )
         )
 
+
 class TabRegistros(ft.Column):
     def __init__(self, cpf: str):
         super().__init__()
@@ -74,9 +75,14 @@ class TabRegistros(ft.Column):
                         titulo=d["titulo"],
                         valor=d["valor"],
                         data_divida=d["data_divida"],
-                        categoria=d["categoria"]
+                        categoria=d["categoria"],
+                        on_pagar_click=self.pagar_divida
                     )
                 )
+
+    def pagar_divida(self, e):
+        pass
+
 
 class TabResumo(ft.Column):
     def __init__(self, cpf: str):
@@ -118,6 +124,7 @@ class TabResumo(ft.Column):
             criar_indicador("Créditos", total_credito, ft.Colors.GREEN_600, ft.Icons.ARROW_UPWARD),
             criar_indicador("Débitos", total_debito, ft.Colors.RED_600, ft.Icons.ARROW_DOWNWARD),
         ]
+
 
 class DashboardComum(ft.View):
     def __init__(self, cpf: str = ""):
@@ -162,9 +169,7 @@ class DashboardComum(ft.View):
         
         # Instanciar a lista de registros com os parâmetros
         self.tab_registros = TabRegistros(
-            cpf=self.user_cpf, 
-            nome_usuario=nome_usuario, 
-            on_pagar_click=self.abrir_dialog_pagar
+            cpf=self.user_cpf,
         )
         
         # Instanciar o resumo financeiro
@@ -203,13 +208,30 @@ class DashboardComum(ft.View):
     async def logout(self, e):
         await self.page.push_route("/login")
 
+
 # Registros do Asaas __________________________________________
+class ActionPanelAsaas(ft.Container):
+    def __init__(self):
+        super().__init__()
+        
+        self.btn_atualizar = ft.IconButton(
+            icon=ft.Icons.REFRESH,
+            tooltip="Atualizar",
+            on_click=self.atualizar
+        )
+
+    def atualizar(self, e):
+        pass
+
 class RegistroAsaas(ft.Card):
     def __init__(self, data_response: dict = None):
         super().__init__()
-        self.id = data_response['id']
+        self.data = data_response
+        self.id = self.data['id']
         self._pix_qrcode = None
         self._pix_payload:str = None
+
+        self.vencimento = datetime.strptime(self.data['dueDate'], "%Y-%m-%d")
 
         self.elevation = 1
         self.margin = ft.Margin.all(5)
@@ -288,7 +310,8 @@ class RegistroAsaas(ft.Card):
         if not self._pix_payload:
             return
         await ft.Clipboard().set(self._pix_payload)
-        
+
+
 class TabRegistrosAsaas(ft.Column):
     def __init__(self, cpf: str):
         super().__init__()
@@ -298,10 +321,7 @@ class TabRegistrosAsaas(ft.Column):
         self.__offset = 0
         self.__limit = 10
         
-        self.controls = [
-            ft.Text("Cobranças Asaas (Pendentes)", size=20, weight=ft.FontWeight.BOLD),
-            ft.Divider(height=10, color=ft.Colors.TRANSPARENT),
-        ]
+        self.controls = []
         
     def did_mount(self):
         # flet lifecycle method
@@ -313,28 +333,31 @@ class TabRegistrosAsaas(ft.Column):
             self.controls.append(ft.Text("CPF inválido.", italic=True))
             self.update()
             return
-            
+        
         try:
             # Requisita na API Asaas em background sem travar a thread principal da tela
             self.customer_id = Asaas.get_customerid(self.cpf)
             
             if not self.customer_id:
-                self.controls.append(ft.Text("Cliente não encontrado.", italic=True))
+                self.controls.append(ft.Text("Cliente não encontrado.", italic=True, selectable=True))
                 self.update()
                 return
-                
+            
+            self.parent.data = []
             has_more = True
             
             while has_more:
                 try:
                     resposta_pagamentos = Asaas.get_cobrancas(
                         customer_id=self.customer_id,
-                        status="PENDING", 
+                        status="PENDING",
                         offset=self.__offset,
-                        limit=self.__limit
+                        limit=self.__limit,
+                        ate_data_venc=datetime(2026, 12, 31),
                     )
                 except Exception as e:
-                    self.controls.append(ft.Text(f"Erro na API Asaas: {str(e)}", color=ft.Colors.RED))
+                    print(e)
+                    self.controls.append(ft.Text(f"Erro na API Asaas get_cobrancas: {str(e)}", color=ft.Colors.RED, selectable=True))
                     self.update()
                     return
                 
@@ -345,12 +368,19 @@ class TabRegistrosAsaas(ft.Column):
                             venc = datetime.strptime(venc, "%Y-%m-%d").strftime("%d/%m/%Y")
                         except:
                             pass
-                            
+                        
+                        self.parent.data.append(pag)
+
                         self.controls.append(
                             RegistroAsaas(
                                 data_response=pag
                             )
                         )
+                    try:
+                        self.controls.sort(key=lambda x: x.vencimento)
+                    except:
+                        pass
+                    
                     self.page.update()
                     has_more = resposta_pagamentos.get("hasMore", False)
                     self.__offset += self.__limit
@@ -366,6 +396,7 @@ class TabRegistrosAsaas(ft.Column):
         except Exception as e:
             self.controls.append(ft.Text(f"Erro na API Asaas: {str(e)}", color=ft.Colors.RED))
             self.update()
+
 
 class DashboardAsaas(ft.View):
     def __init__(self, cpf: str = ""):
@@ -398,10 +429,11 @@ class DashboardAsaas(ft.View):
             ]
         )
         
+
         self.tab_registros_asaas = TabRegistrosAsaas(
             cpf=self.user_cpf
         )
-        
+
         self.controls = [
             ft.Container(
                 expand=True,
@@ -424,6 +456,7 @@ class DashboardAsaas(ft.View):
     async def logout(self, e):
         await self.page.push_route("/login")
 
+
 # Painel principal Navegação de Dashboards
 class Dashboard(ft.View):
     def __init__(self, cpf: str = ""):
@@ -443,8 +476,8 @@ class Dashboard(ft.View):
                 titulo_texto = f"Painel de {nome_usuario}"
 
         self.appbar = ft.AppBar(
-            title=ft.Text(titulo_texto),
-            bgcolor=ft.Colors.ON_SURFACE_VARIANT,
+            title=ft.Row(controls= [ft.Icon(ft.Icons.PERSON), ft.Text(titulo_texto)]),
+            bgcolor=ft.Colors.SURFACE_CONTAINER,
             actions=[
                 ft.IconButton(ft.Icons.LOGOUT, tooltip="Sair", on_click=self.logout),
             ]

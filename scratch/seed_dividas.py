@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 from database.config import SessionLocal
-from database.models import Registro, Usuario, Categoria, Classificacao
+from models.db_models import Registro, Usuario, Categoria, Classificacao
 
 def seed_dividas():
     db = SessionLocal()

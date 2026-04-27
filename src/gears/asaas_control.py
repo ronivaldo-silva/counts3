@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from gears.asaas_api import AsaasAPI
 
 class Asaas:
@@ -22,15 +23,21 @@ class Asaas:
         return None
         
     @staticmethod
-    def get_cobrancas(customer_id: str, status="PENDING", offset=0, limit=10):
+    def get_cobrancas(customer_id: str, status="PENDING", offset=0, limit=10, ate_data_venc:datetime=None):
         """
         Retorna cobranças usando a instância compartilhada da API.
         """
+        if ate_data_venc:
+            dueDate_le = ate_data_venc
+        else:
+            dueDate_le = datetime.now() + timedelta(days=40)
+
         return Asaas._api.list_cobrancas(
-            customer=customer_id,
-            status=status,
-            offset=offset,
-            limit=limit
+            customer    = customer_id,
+            status      = status,
+            offset      = offset,
+            limit       = limit,
+            dueDate_le  = dueDate_le.strftime('%Y-%m-%d')
         )
         
     @staticmethod

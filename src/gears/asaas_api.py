@@ -143,8 +143,8 @@ class AsaasAPI:
             "anticipable": anticipable,
             "dateCreated[ge]": dateCreated_ge,
             "dateCreated[le]": dateCreated_le,
-            "dueDate[ge]": dueDate_ge,
-            "dueDate[le]": dueDate_le,
+            "dueDate[ge]": dueDate_ge, # data de vencimento inicial
+            "dueDate[le]": dueDate_le, # data de vencimento final
             "offset": offset,
             "limit": limit
         }

@@ -1,6 +1,5 @@
 import flet as ft
 from views.login import Login
-from views.crud_user import CrudUser
 from views.dashboard import DashboardComum, DashboardAsaas, Dashboard
 from views.managment import Managment
 from database.config import seed_basic_data
@@ -21,9 +20,6 @@ async def main(page: ft.Page):
         # Rota Login
         if troute.match("/") or troute.match("/login"):
             page.views.append(Login())
-            
-        elif troute.match("/new_user"):
-            page.views.append(CrudUser())
         
         elif troute.match("/dashboard/:cpf"):
             page.views.append(Dashboard(cpf=troute.cpf))
@@ -53,7 +49,7 @@ async def main(page: ft.Page):
 
     # Inicializa a rota
     if page.route == "/":
-        await page.push_route("/managment")
+        await page.push_route("/login")
     else:
         await page.push_route(page.route)
 

@@ -4,7 +4,7 @@ from datetime import date, datetime
 from sqlalchemy import String, Float, Boolean, Date, ForeignKey, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .config import Base
+from database.config import Base
 
 class Usuario(Base):
     """
@@ -49,6 +49,11 @@ class Categoria(Base):
 class Classificacao(Base):
     __tablename__ = "classificacoes"
 
+    # 1,Pendente   - Não foi pago
+    # 2,Vencido    - Passou da data prevista e não foi pago
+    # 3,Pago       - Foi pago
+    # 4,Parcial    - Foi pago parcialmente
+
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     classificacao: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
 
@@ -80,4 +85,3 @@ class Registro(Base):
 
     def __repr__(self):
         return f"<Registro(id={self.id}, valor={self.valor}, type_id={self.type_id})>"
-        

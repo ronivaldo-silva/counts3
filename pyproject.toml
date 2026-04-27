@@ -1,21 +1,21 @@
 [project]
 name = "counts3"
-version = "0.1.0"
+version = "0.2.0"
 description = ""
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [
-    { name = "Flet developer", email = "you@example.com" }
+    { name = "Ronivaldo Silva", email = "Ronivaldo.alpha@gmail.com" }
 ]
 dependencies = [
-    "flet>=0.84.0"
+    "flet=0.84.0"
 ]
 
 [dependency-groups]
 dev = [
-    "flet-cli>=0.84.0",
-    "flet-desktop>=0.84.0",
-    "flet-web>=0.84.0",
+    "flet-cli=0.84.0",
+    "flet-desktop=0.84.0",
+    "flet-web=0.84.0",
 ]
 
 [tool.flet]
@@ -26,3 +26,4 @@ copyright = "Copyright (C) 2023-2026 by Flet"
 
 [tool.flet.app]
 path = "src"
+module = "main.py"
