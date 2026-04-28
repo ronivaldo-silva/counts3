@@ -136,13 +136,13 @@ class FormUser(ft.AlertDialog):
         else:
             sucesso, msg = DBControl.criar_usuario_completo(cpf, nome, senha, is_admin, actived)
 
-        self.page.show_dialog(
-            ft.SnackBar(content=ft.Text(msg), bgcolor=ft.Colors.GREEN_700 if sucesso else ft.Colors.RED_700)
-        )
-
         if sucesso and self.on_save:
             self.on_save()
             self.page.pop_dialog()
+
+        self.page.show_dialog(
+            ft.SnackBar(content=ft.Text(msg), bgcolor=ft.Colors.GREEN_700 if sucesso else ft.Colors.RED_700)
+        )
 
 
 class ActionPanelUser(ft.Container):
