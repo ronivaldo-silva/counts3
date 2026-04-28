@@ -1,4 +1,3 @@
-from turtle import pen
 import flet as ft
 from gears.db_control import DBControl
 from gears.asaas_control import Asaas
@@ -469,6 +468,7 @@ class Dashboard(ft.View):
                 expand=True,
                 content=ft.Column(
                     expand=True,
+                    width=800,
                     controls=[
                         self.abas,
                         self.abas_views
