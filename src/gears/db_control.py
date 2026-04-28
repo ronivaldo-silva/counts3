@@ -299,6 +299,19 @@ class DBControl:
             return registros
             
     @staticmethod
+    def get_estatisticas_dividas_usuario(user_id: int):
+        with SessionLocal() as db:
+            stmt = select(Registro).where(
+                Registro.user_id == user_id,
+                Registro.classificacao_id.in_([1, 2])
+            )
+            registros = db.scalars(stmt).all()
+            total = sum(r.valor for r in registros)
+            datas = [r.data_prevista for r in registros if r.data_prevista] + [r.data_debito for r in registros if r.data_debito]
+            data_antiga = min(datas) if datas else None
+            return total, data_antiga
+            
+    @staticmethod
     def get_registros_por_cpf(cpf: str, pendente: bool = False, vencimento: date = None):
         """
         Recupera os registros do banco de dados filtrando pelo CPF do usuário.

@@ -19,11 +19,19 @@ dev = [
 ]
 
 [tool.flet]
-org = "com.mycompany"
+org = "com.alphaformate"
 product = "counts3"
-company = "Flet"
-copyright = "Copyright (C) 2023-2026 by Flet"
+company = "AlphaFormated"
+copyright = "Copyright (C) 2026 by AlphaFormated"
 
 [tool.flet.app]
 path = "src"
 module = "main.py"
+
+[tool.flet.web]
+
+
+[tool.flet.splash]
+android = false
+ios = false
+web = true

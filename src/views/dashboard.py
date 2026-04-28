@@ -230,17 +230,25 @@ class RegistroAsaasCard(ft.Card):
             
         valor = f"R$ {self.data.get('value', 0):,.2f}"
 
+        ref_status = {
+            'PENDING': 'Pendente',
+            'OVERDUE': 'Vencido',
+            'RECEIVED': 'Pago',
+        }
+
         ref_color = {
-            'PENDING': ft.Colors.ORANGE_400,
+            'PENDING': ft.Colors.AMBER_400,
             'OVERDUE': ft.Colors.RED_400,
             'RECEIVED': ft.Colors.GREEN_400,
         }
+
         ref_icon = {
             'PENDING': ft.Icons.SCHEDULE,
             'OVERDUE': ft.Icons.ERROR_OUTLINE,
             'RECEIVED': ft.Icons.CHECK_CIRCLE,
         }
         
+        st_text = ref_status.get(status, status)
         st_color = ref_color.get(status, ft.Colors.BLUE_400)
         st_icon = ref_icon.get(status, ft.Icons.INFO_OUTLINE)
 
@@ -275,7 +283,7 @@ class RegistroAsaasCard(ft.Card):
                     tight=True,
                     controls=[
                         ft.Icon(st_icon, size=16, color=st_color),
-                        ft.Text(status, size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK_87)
+                        ft.Text(st_text, size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK_87)
                     ]
                 )
             ),

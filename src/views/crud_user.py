@@ -243,6 +243,10 @@ class CardUser(ft.Card):
         status_color = ft.Colors.GREEN_300 if usuario.actived else ft.Colors.RED_300
         admin_color = ft.Colors.BLUE_300 if usuario.is_admin else ft.Colors.GREY_400
 
+        total, data_antiga = DBControl.get_estatisticas_dividas_usuario(usuario.id)
+        total_text = f"R$ {total:,.2f}"
+        data_text = data_antiga.strftime("%d/%m/%Y") if data_antiga else "N/A"
+
         self.titulo.controls = [
             ft.Text(nome, weight=ft.FontWeight.BOLD, size=14, selectable=True),
             ft.Text("|", color=ft.Colors.BLUE_300, weight=ft.FontWeight.BOLD),
@@ -275,6 +279,34 @@ class CardUser(ft.Card):
                     controls=[
                         ft.Icon(ft.Icons.POWER_SETTINGS_NEW, size=14, color=status_color),
                         ft.Text(status_text, size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK_54)
+                    ]
+                )
+            ),
+            ft.Container(
+                bgcolor=ft.Colors.SURFACE_BRIGHT,
+                padding=ft.Padding.symmetric(horizontal=5, vertical=2),
+                border_radius=ft.BorderRadius.all(8),
+                border=ft.Border.all(1, ft.Colors.RED_300),
+                height=30,
+                content=ft.Row(
+                    tight=True,
+                    controls=[
+                        ft.Icon(ft.Icons.MONEY_OFF, size=14, color=ft.Colors.RED_300),
+                        ft.Text(total_text, size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK_54)
+                    ]
+                )
+            ),
+            ft.Container(
+                bgcolor=ft.Colors.SURFACE_BRIGHT,
+                padding=ft.Padding.symmetric(horizontal=5, vertical=2),
+                border_radius=ft.BorderRadius.all(8),
+                border=ft.Border.all(1, ft.Colors.ORANGE_300),
+                height=30,
+                content=ft.Row(
+                    tight=True,
+                    controls=[
+                        ft.Icon(ft.Icons.WARNING_AMBER, size=14, color=ft.Colors.ORANGE_300),
+                        ft.Text(f"Antiga: {data_text}", size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK_54)
                     ]
                 )
             ),
