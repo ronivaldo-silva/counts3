@@ -3,6 +3,7 @@ from views.login import Login
 from views.dashboard import Dashboard
 from views.managment import Managment
 from database.config import seed_basic_data
+from gears.db_control import DBControl
 from dotenv import load_dotenv
 import os
 
@@ -14,25 +15,39 @@ ASSETSPATH = os.getenv("ASSETSPATH", 'assets')
 async def main(page: ft.Page):
     page.title = "Counts3"
     page.theme_mode = ft.ThemeMode.LIGHT
-    page.route = "/"
+    # -- Rehidratação de Sessão --
+    if not page.session.get("user_cpf"):
+        stored_cpf = await page.client_storage.get_async("user_cpf")
+        if stored_cpf:
+            usuario = DBControl.get_usuario_por_cpf(stored_cpf)
+            if usuario:
+                page.session.set("user_cpf", stored_cpf)
+                page.session.set("is_admin", usuario.get("is_admin"))
 
     def route_change(e: ft.RouteChangeEvent):
         page.views.clear()
-        
         troute = ft.TemplateRoute(page.route)
+        
+        logado_cpf = page.session.get("user_cpf")
+        is_admin = page.session.get("is_admin")
         
         # Rota Login
         if troute.match("/") or troute.match("/login"):
             page.views.append(Login())
         
         elif troute.match("/dashboard/:cpf"):
-            page.views.append(Dashboard(cpf=troute.cpf))
+            if logado_cpf and logado_cpf == troute.cpf:
+                page.views.append(Dashboard(cpf=troute.cpf))
+            else:
+                page.views.append(Login())
             
         elif troute.match("/managment"):
-            page.views.append(Managment())
+            if is_admin:
+                page.views.append(Managment())
+            else:
+                page.views.append(Login())
         
         else:
-            # Fallback para rotas desconhecidas (opcional, leva pro login)
             page.views.append(Login())
             
         page.update()
@@ -45,10 +60,18 @@ async def main(page: ft.Page):
     page.on_route_change = route_change
     page.on_view_pop = view_pop
 
-    # Inicializa a rota
-    if page.route == "/":
-        await page.push_route("/login")
+    # Inicializa a rota considerando reidratação
+    if page.route == "/" or page.route == "":
+        logado_cpf = page.session.get("user_cpf")
+        is_admin = page.session.get("is_admin")
+        if is_admin:
+            await page.push_route("/managment")
+        elif logado_cpf:
+            await page.push_route(f"/dashboard/{logado_cpf}")
+        else:
+            await page.push_route("/login")
     else:
+        # Ao chamar push_route, o route_change avaliará a segurança
         await page.push_route(page.route)
 
 if __name__ == "__main__":

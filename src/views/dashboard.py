@@ -495,4 +495,6 @@ class Dashboard(ft.View):
         self.page.update()
 
     async def logout(self, e):
+        self.page.session.clear()
+        await self.page.client_storage.remove_async("user_cpf")
         await self.page.push_route("/login")
