@@ -7,14 +7,11 @@ from dotenv import load_dotenv
 import os
 
 load_dotenv()
-
 HOST = os.getenv("HOST", '0.0.0.0')
 PORT = int(os.getenv("PORT", '10000'))
+ASSETSPATH = os.getenv("ASSETSPATH", 'assets')
 
 async def main(page: ft.Page):
-    # Cria os recursos de banco locais e injeta dados básicos se virgem
-    seed_basic_data()
-
     page.title = "Counts3"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.route = "/"
@@ -55,4 +52,15 @@ async def main(page: ft.Page):
         await page.push_route(page.route)
 
 if __name__ == "__main__":
-    ft.run(main=main, view=ft.AppView.WEB_BROWSER, host=HOST, port=PORT)
+    # Cria os recursos de banco locais e injeta dados básicos se virgem
+    # Roda uma única vez na inicialização global do app
+    seed_basic_data()
+    
+    ft.run(
+        main=main, 
+        view=ft.AppView.WEB_BROWSER,
+        host=HOST,
+        port=PORT,
+        assets_dir=ASSETSPATH
+    )
+        

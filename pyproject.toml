@@ -1,5 +1,5 @@
 [project]
-name = "counts3"
+name = "counts3-alpha"
 version = "0.2.0"
 description = ""
 readme = "README.md"
@@ -16,11 +16,15 @@ dev = [
     "flet-cli=0.84.0",
     "flet-desktop=0.84.0",
     "flet-web=0.84.0",
+    "SQLAlchemy",
+    "psycopg2-binary",
+    "python-dotenv",
+    "requests"
 ]
 
 [tool.flet]
 org = "com.alphaformate"
-product = "counts3"
+product = "alpha-counts3"
 company = "AlphaFormated"
 copyright = "Copyright (C) 2026 by AlphaFormated"
 
@@ -29,9 +33,3 @@ path = "src"
 module = "main.py"
 
 [tool.flet.web]
-
-
-[tool.flet.splash]
-android = false
-ios = false
-web = true

@@ -148,7 +148,7 @@ class Login(ft.View):
             border=ft.Border.all(1, ft.Colors.BLUE_300),
             border_radius=ft.BorderRadius.all(10),
             content=ft.Image(
-                src="logos/udv_logo.png",
+                src="logomarca.png",
                 width=250,
                 height=150,
             ),
@@ -183,7 +183,7 @@ class Login(ft.View):
         sucesso, msg_or_version = DBControl.verificar_conexao()
         if sucesso:
             self.db_info.color = ft.Colors.GREEN_500
-            self.db_info.tooltip = f"Banco de Dados Conectado\n{msg_or_version}"
+            self.db_info.tooltip = "Banco de Dados Conectado\n" + f"{msg_or_version}"
         else:
             self.db_info.color = ft.Colors.RED_500
             self.db_info.tooltip = f"Erro de Conexão\nOffline"
