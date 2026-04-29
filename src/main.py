@@ -16,20 +16,20 @@ async def main(page: ft.Page):
     page.title = "Counts3"
     page.theme_mode = ft.ThemeMode.LIGHT
     # -- Rehidratação de Sessão --
-    if not page.session.get("user_cpf"):
-        stored_cpf = await page.client_storage.get_async("user_cpf")
+    if not page.session.store.contains_key("user_cpf"):
+        stored_cpf = await page.shared_preferences.get("user_cpf")
         if stored_cpf:
             usuario = DBControl.get_usuario_por_cpf(stored_cpf)
             if usuario:
-                page.session.set("user_cpf", stored_cpf)
-                page.session.set("is_admin", usuario.get("is_admin"))
+                page.session.store.set("user_cpf", stored_cpf)
+                page.session.store.set("is_admin", usuario.get("is_admin"))
 
     def route_change(e: ft.RouteChangeEvent):
         page.views.clear()
         troute = ft.TemplateRoute(page.route)
         
-        logado_cpf = page.session.get("user_cpf")
-        is_admin = page.session.get("is_admin")
+        logado_cpf = page.session.store.get("user_cpf")
+        is_admin = page.session.store.get("is_admin")
         
         # Rota Login
         if troute.match("/") or troute.match("/login"):
@@ -62,8 +62,8 @@ async def main(page: ft.Page):
 
     # Inicializa a rota considerando reidratação
     if page.route == "/" or page.route == "":
-        logado_cpf = page.session.get("user_cpf")
-        is_admin = page.session.get("is_admin")
+        logado_cpf = page.session.store.get("user_cpf")
+        is_admin = page.session.store.get("is_admin")
         if is_admin:
             await page.push_route("/managment")
         elif logado_cpf:

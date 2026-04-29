@@ -243,9 +243,9 @@ class Login(ft.View):
         
         if usuario:
             # ---> SALVA O ESTADO DE LOGIN NA SESSÃO E NO CLIENTE <---
-            self.page.session.set("user_cpf", cpf)
-            self.page.session.set("is_admin", usuario.get("is_admin"))
-            await self.page.client_storage.set_async("user_cpf", cpf)
+            self.page.session.store.set("user_cpf", cpf)
+            self.page.session.store.set("is_admin", usuario.get("is_admin"))
+            await self.page.shared_preferences.set("user_cpf", cpf)
             
             # Login efetuado com sucesso
             self.page.show_dialog(
