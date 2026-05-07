@@ -174,13 +174,26 @@ class ActionPanelUser(ft.Container):
             bar_bgcolor=ft.Colors.SURFACE_CONTAINER, 
             tooltip="CPF ou Nome"
         )
+
+        self.dropdown_status = ft.Dropdown(
+            label="Status Dívida",
+            menu_height=300,
+            options=[
+                ft.DropdownOption(text="Todos", key="Todos"),
+                ft.DropdownOption(text="Em débito", key="Em débito"),
+                ft.DropdownOption(text="Em atraso", key="Em atraso"),
+                ft.DropdownOption(text="Quitado", key="Quitado"),
+            ],
+            value="Todos"
+        )
         
         self.content = ft.Row(
             wrap=True,
             controls=[
                 self.btn_new,
                 self.btn_atualizar,
-                self.search
+                self.search,
+                self.dropdown_status
             ]
         )
         
@@ -343,11 +356,12 @@ class TabUsuarios(ft.Column):
         self.controls = self._carregar_usuarios()
 
     # 4. Funções importantes no final
-    def atualizar_lista(self, query: str = ""):
-        self.controls = self._carregar_usuarios(query)
+    def atualizar_lista(self, query: str = "", status: str = "Todos"):
+        self.controls = self._carregar_usuarios(query, status)
         self.update()
 
-    def _carregar_usuarios(self, query: str = "") -> list:
+    def _carregar_usuarios(self, query: str = "", status: str = "Todos") -> list:
+        from datetime import date
         usuarios = DBControl.get_all_usuarios()
         
         if query:
@@ -356,6 +370,21 @@ class TabUsuarios(ft.Column):
                 u for u in usuarios 
                 if q in u.nome.lower() or q in u.cpf.lower()
             ]
+
+        if status != "Todos":
+            filtered_usuarios = []
+            for u in usuarios:
+                total, data_antiga = DBControl.get_estatisticas_dividas_usuario(u.id)
+                if status == "Quitado":
+                    if total == 0:
+                        filtered_usuarios.append(u)
+                elif status == "Em débito":
+                    if total > 0:
+                        filtered_usuarios.append(u)
+                elif status == "Em atraso":
+                    if total > 0 and data_antiga and data_antiga < date.today():
+                        filtered_usuarios.append(u)
+            usuarios = filtered_usuarios
 
         if not usuarios:
             return [

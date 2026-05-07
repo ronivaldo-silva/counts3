@@ -289,6 +289,12 @@ class FormRegistro(ft.AlertDialog):
     async def date_picker(self,e):
         self.page.show_dialog(self.dialog_date)
 
+    def atualizar_usuarios_dropdown(self):
+        self.input_cpf.options = [
+            ft.DropdownOption(text=f"{usuario.cpf}•{usuario.nome}", key=usuario.cpf) 
+            for usuario in DBControl.get_all_usuarios()
+        ]
+
 class ActionPanel(ft.Container):
     def __init__(self):
         super().__init__()
@@ -316,16 +322,40 @@ class ActionPanel(ft.Container):
             bar_bgcolor=ft.Colors.SURFACE_CONTAINER, 
             tooltip="CPF ou Nome"
         )
+
+        self.dropdown_categoria = ft.Dropdown(
+            label="Categoria",
+            menu_height=300,
+            options=[ft.DropdownOption(text="Todas", key="Todas")] + [
+                ft.DropdownOption(text=c.categoria, key=str(c.id)) for c in DBControl.get_all_categorias()
+            ],
+            value="Todas"
+        )
+
+        self.dropdown_classificacao = ft.Dropdown(
+            label="Classificação",
+            menu_height=300,
+            options=[
+                ft.DropdownOption(text="Todas", key="Todas"),
+                ft.DropdownOption(text="Pendente", key="1"),
+                ft.DropdownOption(text="Vencido", key="2"),
+                ft.DropdownOption(text="Pago", key="3"),
+            ],
+            value="Todas"
+        )
         
         self.content = ft.Row(
             wrap=True,
             controls=[
                 self.btn_new,
                 self.btn_atualizar,
-                self.search
+                self.search,
+                self.dropdown_categoria,
+                self.dropdown_classificacao
             ]
         )
     async def show_dialog(self, e):
+        self.new_divida_dialog.atualizar_usuarios_dropdown()
         self.page.show_dialog(self.new_divida_dialog)
 
 class CardRegistro(ft.Card):
@@ -477,6 +507,7 @@ class CardRegistro(ft.Card):
             self.btn_quitar.icon_color = ft.Colors.GREEN_300
 
     async def editar_divida(self, e):
+        self.edit_divida_dialog.atualizar_usuarios_dropdown()
         self.page.show_dialog(self.edit_divida_dialog)
     
     async def confirm_delete(self):
@@ -509,11 +540,11 @@ class TabRegistros(ft.Column):
         self.scroll = ft.ScrollMode.ALWAYS
         self.controls = self._carregar_dividas()
 
-    def atualizar_lista(self, query: str = ""):
-        self.controls = self._carregar_dividas(query)
+    def atualizar_lista(self, query: str = "", categoria: str = "Todas", classificacao: str = "Todas"):
+        self.controls = self._carregar_dividas(query, categoria, classificacao)
         self.update()
 
-    def _carregar_dividas(self, query: str = "") -> list:
+    def _carregar_dividas(self, query: str = "", categoria: str = "Todas", classificacao: str = "Todas") -> list:
         """Busca todos os Registros no banco e retorna uma lista de cartões Dividas."""
         registros: list[Registro] = DBControl.get_todos_registros()
         
@@ -523,6 +554,12 @@ class TabRegistros(ft.Column):
                 reg for reg in registros 
                 if q in reg.usuario.nome.lower() or q in reg.usuario.cpf.lower()
             ]
+
+        if categoria != "Todas":
+            registros = [reg for reg in registros if str(reg.category_id) == categoria]
+
+        if classificacao != "Todas":
+            registros = [reg for reg in registros if str(reg.classificacao_id) == classificacao]
 
         if not registros:
             return [

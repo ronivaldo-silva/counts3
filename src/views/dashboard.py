@@ -20,14 +20,20 @@ class RegistroCard(ft.Card):
         self.titulo = ft.Row(tight=True, alignment=ft.MainAxisAlignment.START, wrap=True)
         self.info = ft.Row(tight=True, alignment=ft.MainAxisAlignment.START, wrap=True, spacing=8)
         
-        # Botão Pagar
+        # Botões de Ação
         self.btn_pagar = ft.IconButton(
             icon=ft.Icons.PAYMENT, 
-            icon_color=ft.Colors.GREEN_400, 
+            icon_color=ft.Colors.GREEN_300, 
             tooltip="Pagar Dívida", 
             on_click=self._pagar
         )
         
+        self.btn_recibo = ft.IconButton(
+            icon=ft.Icons.RECEIPT,
+            icon_color=ft.Colors.BLUE_300,
+            tooltip="Recibo",
+        )
+
         self.__definir_valores()
 
         self.content = ft.Column(
@@ -48,7 +54,11 @@ class RegistroCard(ft.Card):
                 ft.Divider(height=1, thickness=0.5),
                 ft.Row(
                     alignment=ft.MainAxisAlignment.END,
-                    controls=[self.btn_pagar],
+                    margin=ft.Margin.only(right=10),
+                    controls=[
+                        self.btn_pagar, 
+                        #self.btn_recibo
+                    ],
                 ),
             ],
         )
@@ -142,7 +152,6 @@ class TabRegistros(ft.Column):
                 actions=[ft.TextButton("Entendi", on_click=lambda e: self.page.pop_dialog())]
             )
         )
-
 
 # --- Registros do Asaas ---
 class RegistroAsaasCard(ft.Card):
@@ -371,7 +380,7 @@ class TabRegistrosAsaas(ft.Column):
                 try:
                     resposta_pagamentos = Asaas.get_cobrancas(
                         customer_id=self.customer_id,
-                        status="PENDING",
+                        # status="PENDING",
                         offset=self.__offset,
                         limit=self.__limit,
                         ate_data_venc=datetime(2026, 12, 31),
@@ -395,6 +404,9 @@ class TabRegistrosAsaas(ft.Column):
                     
             if len(self.controls) == 0:
                 self.controls.append(ft.Container(padding=20, content=ft.Text("Nenhuma cobrança Asaas pendente.", italic=True, color=ft.Colors.GREY_500)))
+                self.update()
+            else:
+                self.controls.sort(key=lambda x: x.data.get("dueDate"))
                 self.update()
                 
         except Exception as e:
@@ -424,12 +436,14 @@ class Dashboard(ft.View):
 
         # Cabeçalho
         self.appbar = ft.AppBar(
+            leading=ft.Icon(ft.Icons.DASHBOARD),
+            leading_width=40,
             title=ft.Text(titulo_texto, weight=ft.FontWeight.W_500),
             bgcolor=ft.Colors.SURFACE_CONTAINER,
             actions=[
                 ft.IconButton(
                     icon=ft.Icons.REFRESH, 
-                    tooltip="Atualizar Dados", 
+                    tooltip="Atualizar Dados",
                     on_click=self.atualizar_tudo
                 ),
                 ft.IconButton(
@@ -496,5 +510,5 @@ class Dashboard(ft.View):
 
     async def logout(self, e):
         self.page.session.store.clear()
-        await self.page.shared_preferences.remove("user_cpf")
+        await ft.SharedPreferences().remove("user_cpf")
         await self.page.push_route("/login")

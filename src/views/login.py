@@ -183,7 +183,7 @@ class Login(ft.View):
         sucesso, msg_or_version = DBControl.verificar_conexao()
         if sucesso:
             self.db_info.color = ft.Colors.GREEN_500
-            self.db_info.tooltip = "Banco de Dados Conectado\n" + f"{msg_or_version}"
+            self.db_info.tooltip = "Banco de Dados Conectado\n" # + f"{msg_or_version}"
         else:
             self.db_info.color = ft.Colors.RED_500
             self.db_info.tooltip = f"Erro de Conexão\nOffline"
@@ -245,7 +245,7 @@ class Login(ft.View):
             # ---> SALVA O ESTADO DE LOGIN NA SESSÃO E NO CLIENTE <---
             self.page.session.store.set("user_cpf", cpf)
             self.page.session.store.set("is_admin", usuario.get("is_admin"))
-            await self.page.shared_preferences.set("user_cpf", cpf)
+            await ft.SharedPreferences().set("user_cpf", cpf)
             
             # Login efetuado com sucesso
             self.page.show_dialog(
@@ -256,10 +256,10 @@ class Login(ft.View):
             )
             
             # Chama a view dashboard caso o login com usuário não administrador
-            if not usuario.get("is_admin"):
-                await self.page.push_route(f"/dashboard/{cpf}")
-            else:
+            if usuario.get("is_admin"):
                 await self.page.push_route("/managment")
+            else:
+                await self.page.push_route("/dashboard")
             
         else:
             # Falha no login

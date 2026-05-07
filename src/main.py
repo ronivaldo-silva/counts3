@@ -15,9 +15,10 @@ ASSETSPATH = os.getenv("ASSETSPATH", 'assets')
 async def main(page: ft.Page):
     page.title = "Counts3"
     page.theme_mode = ft.ThemeMode.LIGHT
+    page.window.icon = "favicon.png"
     # -- Rehidratação de Sessão --
     if not page.session.store.contains_key("user_cpf"):
-        stored_cpf = await page.shared_preferences.get("user_cpf")
+        stored_cpf = None #await ft.SharedPreferences().get("user_cpf")
         if stored_cpf:
             usuario = DBControl.get_usuario_por_cpf(stored_cpf)
             if usuario:
@@ -35,9 +36,9 @@ async def main(page: ft.Page):
         if troute.match("/") or troute.match("/login"):
             page.views.append(Login())
         
-        elif troute.match("/dashboard/:cpf"):
-            if logado_cpf and logado_cpf == troute.cpf:
-                page.views.append(Dashboard(cpf=troute.cpf))
+        elif troute.match("/dashboard"):
+            if logado_cpf:
+                page.views.append(Dashboard(cpf=logado_cpf))
             else:
                 page.views.append(Login())
             
@@ -53,9 +54,12 @@ async def main(page: ft.Page):
         page.update()
 
     async def view_pop(e: ft.ViewPopEvent):
-        page.views.pop()
-        top_view = page.views[-1]
-        await page.push_route(top_view.route)
+        if len(page.views) > 1:
+            page.views.pop()
+            top_view = page.views[-1]
+            await page.push_route(top_view.route)
+        else:
+            await page.push_route("/")
 
     page.on_route_change = route_change
     page.on_view_pop = view_pop
@@ -67,7 +71,7 @@ async def main(page: ft.Page):
         if is_admin:
             await page.push_route("/managment")
         elif logado_cpf:
-            await page.push_route(f"/dashboard/{logado_cpf}")
+            await page.push_route("/dashboard")
         else:
             await page.push_route("/login")
     else:
