@@ -16,6 +16,7 @@ async def main(page: ft.Page):
     page.title = "Counts3"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.window.icon = "favicon.png"
+    page.route
     # -- Rehidratação de Sessão --
     if not page.session.store.contains_key("user_cpf"):
         stored_cpf = None #await ft.SharedPreferences().get("user_cpf")
@@ -25,14 +26,15 @@ async def main(page: ft.Page):
                 page.session.store.set("user_cpf", stored_cpf)
                 page.session.store.set("is_admin", usuario.get("is_admin"))
 
-    def route_change(e: ft.RouteChangeEvent):
+
+    async def route_change(e: ft.RouteChangeEvent):
         page.views.clear()
         troute = ft.TemplateRoute(page.route)
         
         logado_cpf = page.session.store.get("user_cpf")
         is_admin = page.session.store.get("is_admin")
         
-        # Rota Login
+        # Rota Login !!!!!!!!!!
         if troute.match("/") or troute.match("/login"):
             page.views.append(Login())
         
@@ -40,16 +42,16 @@ async def main(page: ft.Page):
             if logado_cpf:
                 page.views.append(Dashboard(cpf=logado_cpf))
             else:
-                page.views.append(Login())
+                await page.push_route("/login")
             
         elif troute.match("/managment"):
             if is_admin:
                 page.views.append(Managment())
             else:
-                page.views.append(Login())
+                await page.push_route("/login")
         
         else:
-            page.views.append(Login())
+            await page.push_route("/login")
             
         page.update()
 
@@ -74,9 +76,11 @@ async def main(page: ft.Page):
             await page.push_route("/dashboard")
         else:
             await page.push_route("/login")
-    else:
+    else: # Pagina não existente
         # Ao chamar push_route, o route_change avaliará a segurança
         await page.push_route(page.route)
+
+        # Criar página informativa com mensagem "Página não Existente"
 
 if __name__ == "__main__":
     # Cria os recursos de banco locais e injeta dados básicos se virgem
