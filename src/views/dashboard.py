@@ -283,7 +283,15 @@ class PainelRegistrosComum(ft.Column):
         self.page.show_dialog(pop_up)
 
     async def copiar_pix(self, e):
-        await ft.Clipboard().set(self.txt_pix.value)
+        try:
+            await ft.Clipboard().set(self.txt_pix.value)
+            self.page.show_dialog(
+                ft.SnackBar(ft.Text("PIX copiado com sucesso!"), bgcolor=ft.Colors.GREEN_300)
+            )
+        except:
+            self.page.show_dialog(
+                ft.SnackBar(ft.Text("Erro ao copiar PIX!"), bgcolor=ft.Colors.RED_300)
+            )
 
 # --- Registros do Asaas ---
 class RegistroAsaasCard(ft.Card):
@@ -352,6 +360,7 @@ class RegistroAsaasCard(ft.Card):
                 ),
                 ft.Divider(height=1, thickness=0.5),
                 ft.Row(
+                    margin=ft.Margin.symmetric(horizontal=10),
                     alignment=ft.MainAxisAlignment.END,
                     controls=[self.btn_pagar],
                 ),
