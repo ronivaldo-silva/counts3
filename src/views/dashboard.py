@@ -120,10 +120,13 @@ class TabRegistros(ft.Column):
         self.expand = True
         self.scroll = ft.ScrollMode.ADAPTIVE
         self.spacing = 10
+        self.dividas_pendentes = []
+        self.on_dividas_loaded = None
         self.carregar_dividas()
 
     def carregar_dividas(self):
         dividas_reais = DBControl.get_registros_por_cpf(self.cpf, pendente=True)
+        self.dividas_pendentes = dividas_reais if dividas_reais else []
         
         self.controls = []
         
@@ -138,6 +141,9 @@ class TabRegistros(ft.Column):
             for d in dividas_reais:
                 # Filtrar apenas o que o usuário precisa pagar ou visualizar
                 self.controls.append(RegistroCard(registro=d, on_pagar_click=self.pagar_divida))
+                
+        if self.on_dividas_loaded:
+            self.on_dividas_loaded()
 
     def atualizar(self):
         self.carregar_dividas()
@@ -152,6 +158,132 @@ class TabRegistros(ft.Column):
                 actions=[ft.TextButton("Entendi", on_click=lambda e: self.page.pop_dialog())]
             )
         )
+
+
+class PainelRegistrosComum(ft.Column):
+    """Painel que envolve TabRegistros e adiciona o cabeçalho com total e botão de pagamento."""
+    def __init__(self, tab_comuns: TabRegistros):
+        super().__init__()
+        self.expand = True
+        self.spacing = 10
+        self.tab_comuns = tab_comuns
+        self.tab_comuns.on_dividas_loaded = self.atualizar_painel
+        
+        self.txt_titulo = ft.Text("Total Pendente:", weight=ft.FontWeight.BOLD, size=12)
+        self.txt_valor = ft.Text("R$ 0,00", weight=ft.FontWeight.BOLD, size=16, color=ft.Colors.RED_600)
+
+        self.txt_total = ft.Row(
+            controls=[
+                ft.Icon(ft.Icons.MONETIZATION_ON, color=ft.Colors.GREEN_600),
+                ft.Column(
+                    spacing=0,
+                    controls=[
+                        self.txt_titulo,
+                        self.txt_valor
+                    ]
+                )
+            ],
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+        )
+        
+        self.btn_pagar_total = ft.FilledButton(
+            content="Pagar",
+            icon=ft.Icons.MONEY,
+            icon_color=ft.Colors.GREEN_600,
+            on_click=self.gerar_pagamento_total,
+            style=ft.ButtonStyle(
+                color=ft.Colors.GREEN_600,
+                bgcolor=ft.Colors.WHITE,
+                elevation=2,
+            ),
+        )
+        
+        self.header = ft.Card(
+            elevation=2,
+            bgcolor=ft.Colors.ORANGE_200,
+            margin=ft.Margin.only(bottom=15),
+            content=ft.Container(
+                padding=10,
+                content=ft.Row(
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    controls=[
+                        self.txt_total,
+                        self.btn_pagar_total
+                    ]
+                )
+            )
+        )
+        
+        self.controls = [
+            self.tab_comuns,
+            self.header,
+        ]
+
+    def did_mount(self):
+        self.atualizar_painel()
+
+    def atualizar_painel(self):
+        dividas = self.tab_comuns.dividas_pendentes
+        total = sum(d.valor for d in dividas) if dividas else 0
+        self.txt_valor.value = f"Total Pendente: R$ {total:,.2f}"
+        self.btn_pagar_total.disabled = total <= 0
+        self.update()
+
+    def gerar_pagamento_total(self, e):
+        dividas = self.tab_comuns.dividas_pendentes
+        if not dividas:
+            return
+            
+        total = sum(d.valor for d in dividas)
+        # Titulo Building
+        title=ft.Row(
+            controls=[
+                ft.Icon(ft.Icons.PIX, color=ft.Colors.GREEN_600),
+                ft.Text("Copie a Chave para Pagar", size=16, weight=ft.FontWeight.BOLD)
+            ]
+        )
+
+        # Corpo / Meio Building
+        qrcode_pix = ft.Image(src='local/qrpix.png', width=200, height=200)
+        self.txt_pix = ft.Text(value="tes.mestrevicentemarques@udv.org.br", selectable=True, color=ft.Colors.BLUE_600)
+
+        # Botões de Ação Building
+        btn_copy = ft.TextButton(
+                on_click=self.copiar_pix,
+                content=ft.Row([ft.Icon(ft.Icons.COPY,), ft.Text("Copiar")], tight=True), 
+                style=ft.ButtonStyle(
+                    color=ft.Colors.BLUE_600,
+                    bgcolor=ft.Colors.WHITE,
+                    side=ft.BorderSide(1, ft.Colors.BLUE_600),
+                    elevation=2,
+                )
+            )
+
+        btn_cancel = ft.TextButton(
+                on_click=lambda e: self.page.pop_dialog(),
+                content=ft.Row([ft.Icon(ft.Icons.CANCEL,), ft.Text("Fechar")], tight=True), 
+                style=ft.ButtonStyle(
+                    color=ft.Colors.RED_300,
+                    bgcolor=ft.Colors.WHITE,
+                    side=ft.BorderSide(1, ft.Colors.RED_300),
+                    elevation=2,
+                )
+            )
+
+        pop_up = ft.AlertDialog(
+            title=title,
+            content=ft.Column(
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                tight=True,
+                controls=[qrcode_pix,self.txt_pix]
+            ),
+            actions=[btn_copy,btn_cancel]
+        )
+        self.page.show_dialog(pop_up)
+
+    async def copiar_pix(self, e):
+        await ft.Clipboard().set(self.txt_pix.value)
 
 # --- Registros do Asaas ---
 class RegistroAsaasCard(ft.Card):
@@ -413,7 +545,6 @@ class TabRegistrosAsaas(ft.Column):
             self.controls = [ft.Text(f"Erro interno: {str(e)}", color=ft.Colors.RED)]
             self.update()
 
-
 # --- View Principal ---
 class Dashboard(ft.View):
     """View do painel de controle do usuário, unificando dívidas comuns e Asaas."""
@@ -457,6 +588,7 @@ class Dashboard(ft.View):
 
         # Instanciar as abas
         self.tab_comuns = TabRegistros(cpf=self.user_cpf)
+        self.painel_comum = PainelRegistrosComum(tab_comuns=self.tab_comuns)
         self.tab_asaas = TabRegistrosAsaas(cpf=self.user_cpf)
 
         # Estrutura com Tabs
@@ -474,7 +606,7 @@ class Dashboard(ft.View):
             controls=[
                 ft.Container(
                     padding=ft.Padding.all(10),
-                    content=self.tab_comuns
+                    content=self.painel_comum
                 ),
                 ft.Container(
                     padding=ft.Padding.all(10),
