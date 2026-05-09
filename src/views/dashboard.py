@@ -19,14 +19,18 @@ class RegistroCard(ft.Card):
         # Elementos do cabeçalho
         self.titulo = ft.Row(tight=True, alignment=ft.MainAxisAlignment.START, wrap=True)
         self.info = ft.Row(tight=True, alignment=ft.MainAxisAlignment.START, wrap=True, spacing=8)
-        
-        # Botões de Ação
-        self.btn_pagar = ft.IconButton(
-            icon=ft.Icons.PAYMENT, 
-            icon_color=ft.Colors.GREEN_300, 
-            tooltip="Pagar Dívida", 
-            on_click=self._pagar
-        )
+
+        self.btn_pagar = ft.TextButton(
+            height=25,
+            on_click=self._pagar,
+            content=ft.Row([ft.Icon(ft.Icons.PAYMENT,), ft.Text("Pagar")], tight=True),
+            style=ft.ButtonStyle(
+                    color=ft.Colors.GREEN_600,
+                    bgcolor=ft.Colors.WHITE,
+                    side=ft.BorderSide(1, ft.Colors.GREEN_600),
+                    elevation=2,
+                )
+            )
         
         self.btn_recibo = ft.IconButton(
             icon=ft.Icons.RECEIPT,
@@ -54,7 +58,7 @@ class RegistroCard(ft.Card):
                 ft.Divider(height=1, thickness=0.5),
                 ft.Row(
                     alignment=ft.MainAxisAlignment.END,
-                    margin=ft.Margin.only(right=10),
+                    margin=ft.Margin.only(left=10, right=10, top=5, bottom=5),
                     controls=[
                         self.btn_pagar, 
                         #self.btn_recibo
@@ -141,7 +145,19 @@ class TabRegistros(ft.Column):
             for d in dividas_reais:
                 # Filtrar apenas o que o usuário precisa pagar ou visualizar
                 self.controls.append(RegistroCard(registro=d, on_pagar_click=self.pagar_divida))
-                
+        
+        # Adicionar cartão com soma de todos os valores
+        # if len(self.controls) > 1:
+        #     # Adicionar ultimo cartão com a soma de todos os valores
+        #     class RegTotal:
+        #         def __init__(self, valor):
+        #             self.valor = valor
+        #             self.categoria_rel = {"categoria": "Total"}
+        #             self.classificacao_rel = {"classificacao": "Total"}
+        #     dados_total = RegTotal(sum([d.valor for d in dividas_reais]))
+        #     Registro
+        #     self.controls.append(RegistroCard(registro=dados_total, on_pagar_click=self.pagar_divida))
+
         if self.on_dividas_loaded:
             self.on_dividas_loaded()
 
@@ -175,8 +191,16 @@ class TabRegistros(ft.Column):
         payload = resultado.get("payload")
         
         async def copiar_payload(e):
-            await ft.Clipboard().set(payload)
-            self.page.show_dialog(ft.SnackBar(ft.Text("Código Pix copiado!"), bgcolor=ft.Colors.GREEN_600))
+            try:
+                await ft.Clipboard().set(payload)
+                self.page.show_dialog(
+                    ft.SnackBar(ft.Text("PIX copiado com sucesso!"), bgcolor=ft.Colors.GREEN_600)
+                )
+            except:
+                self.page.show_dialog(
+                    ft.SnackBar(ft.Text("Erro ao copiar PIX!"), bgcolor=ft.Colors.RED_600)
+                )
+
 
         dialogo = ft.AlertDialog(
             title=ft.Row([ft.Icon(ft.Icons.PIX, color=ft.Colors.GREEN_600), ft.Text("Pagar via Pix")], tight=True),
@@ -195,7 +219,56 @@ class TabRegistros(ft.Column):
             ]
         )
         
-        self.page.show_dialog(dialogo)
+########## Novo dialogo para pagamento único
+        # Titulo Building
+        title=ft.Row(
+            controls=[
+                ft.Icon(ft.Icons.PIX, color=ft.Colors.GREEN_600),
+                ft.Text(f"Pagar {data.categoria_rel.categoria} via Pix", size=16, weight=ft.FontWeight.BOLD)
+            ]
+        )
+
+        # Corpo / Meio Building
+        qrcode_pix = ft.Image(src=img_base64, width=200, height=200)
+        self.txt_pix = ft.Text(value=payload, selectable=True, color=ft.Colors.BLUE_600)
+
+        # Botões de Ação Building
+        btn_copy = ft.TextButton(
+                on_click=copiar_payload,
+                content=ft.Row([ft.Icon(ft.Icons.COPY,), ft.Text("Copiar")], tight=True), 
+                style=ft.ButtonStyle(
+                    color=ft.Colors.BLUE_600,
+                    bgcolor=ft.Colors.WHITE,
+                    side=ft.BorderSide(1, ft.Colors.BLUE_600),
+                    elevation=2,
+                )
+            )
+
+        btn_cancel = ft.TextButton(
+                on_click=lambda e: self.page.pop_dialog(),
+                content=ft.Row([ft.Icon(ft.Icons.CANCEL,), ft.Text("Fechar")], tight=True), 
+                style=ft.ButtonStyle(
+                    color=ft.Colors.RED_300,
+                    bgcolor=ft.Colors.WHITE,
+                    side=ft.BorderSide(1, ft.Colors.RED_300),
+                    elevation=2,
+                )
+            )
+
+        pop_up = ft.AlertDialog(
+            title=title,
+            content=ft.Column(
+                width=300,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                tight=True,
+                controls=[qrcode_pix,self.txt_pix]
+            ),
+            actions=[btn_copy,btn_cancel]
+        )
+
+        self.page.show_dialog(pop_up)
+
+        # self.page.show_dialog(dialogo)
 
 
 class PainelRegistrosComum(ft.Column):
@@ -642,8 +715,8 @@ class Dashboard(ft.View):
         self.abas = ft.TabBar(
             indicator_color=ft.Colors.AMBER_300,
             tabs=[
-                ft.Tab(label="Dívidas Internas", icon=ft.Icons.HOME_WORK),
-                ft.Tab(label="Cobranças Asaas", icon=ft.Icons.RECEIPT_LONG),
+                ft.Tab(label="Obrigações Peculiares", icon=ft.Icons.HOME_WORK),
+                ft.Tab(label="Mensalidades Boletos", icon=ft.Icons.RECEIPT_LONG),
             ],
         )
 
