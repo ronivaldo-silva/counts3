@@ -82,12 +82,14 @@ class Asaas:
         if not address_key:
             print("Erro: Nenhuma chave Pix encontrada na conta Asaas.")
             return None
+        
+        descricao_curta = f"{descricao} | Ref: {id_divida}"[:37]
             
         # 2. Gera o QR Code Estático
         # Conforme solicitado: duração 10 min (600s)
         return Asaas._api.create_static_pix_qr_code(
             addressKey=address_key,
-            description=f"{descricao} | Ref: {id_divida}" if id_divida else descricao,
+            description=descricao_curta,
             value=valor,
             expirationSeconds=600, # 10 minutos
             allowsMultiplePayments=False

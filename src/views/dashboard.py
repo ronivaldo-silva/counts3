@@ -117,6 +117,107 @@ class RegistroCard(ft.Card):
             self.on_pagar_click(self.data)
 
 
+class RegistroTotalCard(ft.Card):
+    """Cartão que exibe a soma total das dívidas, formatado similar ao RegistroCard."""
+    def __init__(self, dados: dict, on_pagar_click):
+        super().__init__()
+        self.dados = dados
+        self.on_pagar_click = on_pagar_click
+        
+        self.elevation = 4
+        self.margin = ft.Margin.only(top=10, bottom=20)
+        
+        # Elementos do cabeçalho
+        self.titulo = ft.Row(tight=True, alignment=ft.MainAxisAlignment.START, wrap=True)
+        self.info = ft.Row(tight=True, alignment=ft.MainAxisAlignment.START, wrap=True, spacing=8)
+
+        self.btn_pagar = ft.TextButton(
+            height=25,
+            on_click=self._pagar,
+            content=ft.Row([ft.Icon(ft.Icons.PAYMENTS,), ft.Text("Pagar Tudo")], tight=True),
+            style=ft.ButtonStyle(
+                    color=ft.Colors.BLUE_900,
+                    bgcolor=ft.Colors.WHITE,
+                    side=ft.BorderSide(1, ft.Colors.BLUE_600),
+                    elevation=2,
+                )
+            )
+
+        self.__definir_valores()
+
+        self.content = ft.Column(
+            tight=True,
+            spacing=4,
+            controls=[
+                ft.Container(
+                    padding=ft.Padding.only(left=10, right=10, top=10, bottom=5),
+                    content=ft.Column(
+                        tight=True,
+                        spacing=5,
+                        controls=[
+                            self.titulo,
+                            self.info,
+                        ],
+                    ),
+                ),
+                ft.Divider(height=1, thickness=0.5),
+                ft.Row(
+                    alignment=ft.MainAxisAlignment.END,
+                    margin=ft.Margin.only(left=10, right=10, top=5, bottom=5),
+                    controls=[
+                        self.btn_pagar, 
+                    ],
+                ),
+            ],
+        )
+
+    def __definir_valores(self):
+        valor_total = f"R$ {self.dados.get('valor', 0):,.2f}"
+        texto_titulo = self.dados.get('titulo', "Total Acumulado")
+        subtitulo = self.dados.get('subtitulo', "Pendências")
+        itens = self.dados.get('itens', 0)
+        
+        self.titulo.controls = [
+            ft.Icon(ft.Icons.MONETIZATION_ON, color=ft.Colors.BLUE_900, size=20),
+            ft.Text(texto_titulo, weight=ft.FontWeight.BOLD, size=16, color=ft.Colors.BLUE_900),
+            ft.Text("|", color=ft.Colors.BLUE_300, weight=ft.FontWeight.BOLD),
+            ft.Text(subtitulo, size=13, color=ft.Colors.BLUE_700),
+        ]
+
+        self.info.controls = [
+            ft.Container(
+                bgcolor=ft.Colors.BLUE_900,
+                padding=ft.Padding.symmetric(horizontal=12, vertical=6),
+                border_radius=ft.BorderRadius.all(8),
+                content=ft.Row(
+                    tight=True,
+                    controls= [
+                        ft.Icon(ft.Icons.ATTACH_MONEY, size=20, color=ft.Colors.WHITE),
+                        ft.Text(valor_total, size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
+                    ],
+                )
+            ),
+            ft.Container(
+                bgcolor=ft.Colors.SURFACE_BRIGHT,
+                padding=ft.Padding.symmetric(horizontal=8, vertical=4),
+                border_radius=ft.BorderRadius.all(8),
+                border=ft.Border.all(1, ft.Colors.BLUE_300),
+                height=32,
+                content=ft.Row(
+                    tight=True,
+                    controls=[
+                        ft.Icon(ft.Icons.LIST_ALT, size=16, color=ft.Colors.BLUE_400),
+                        ft.Text(f"{itens} itens", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK_87)
+                    ],
+                )
+            )
+        ]
+
+    def _pagar(self, e):
+        if self.on_pagar_click:
+            self.on_pagar_click(self.dados)
+
+
 class TabRegistros(ft.Column):
     def __init__(self, cpf: str):
         super().__init__()
@@ -142,28 +243,110 @@ class TabRegistros(ft.Column):
                 )
             )
         else:
+            total_valor = 0
             for d in dividas_reais:
+                total_valor += d.valor
                 # Filtrar apenas o que o usuário precisa pagar ou visualizar
                 self.controls.append(RegistroCard(registro=d, on_pagar_click=self.pagar_divida))
+            
+            # Adiciona o card de resumo total ao final da lista
+            self.controls.append(
+                RegistroTotalCard(
+                    dados={
+                        "valor": total_valor,
+                        "itens": len(dividas_reais),
+                        "titulo": "Resumo das Obrigações",
+                        "subtitulo": "Total Pendente"
+                    },
+                    on_pagar_click=self.pagar_tudo
+                )
+            )
         
-        # Adicionar cartão com soma de todos os valores
-        # if len(self.controls) > 1:
-        #     # Adicionar ultimo cartão com a soma de todos os valores
-        #     class RegTotal:
-        #         def __init__(self, valor):
-        #             self.valor = valor
-        #             self.categoria_rel = {"categoria": "Total"}
-        #             self.classificacao_rel = {"classificacao": "Total"}
-        #     dados_total = RegTotal(sum([d.valor for d in dividas_reais]))
-        #     Registro
-        #     self.controls.append(RegistroCard(registro=dados_total, on_pagar_click=self.pagar_divida))
-
         if self.on_dividas_loaded:
             self.on_dividas_loaded()
 
     def atualizar(self):
         self.carregar_dividas()
         self.update()
+
+    def pagar_tudo(self, dados: dict):
+        valor_total = dados.get("valor", 0)
+        if valor_total <= 1:
+            return
+
+        # Mostra um indicador de carregamento
+        loading_dialog = ft.AlertDialog(
+            content=ft.Row([ft.ProgressRing(), ft.Text(" Gerando QR Code do Total...")], tight=True),
+        )
+        self.page.show_dialog(loading_dialog)
+
+        descricao = f"Pgto.Total"[:37]
+        try:
+            resultado = Asaas.gerar_pix_estatico(
+                valor=valor_total,
+                descricao=descricao,
+                id_divida="777"
+            )
+            self.page.pop_dialog()
+        except:
+            self.page.pop_dialog()
+            self.page.show_dialog(ft.SnackBar(ft.Text("Erro ao gerar QR Code do Total."), bgcolor=ft.Colors.RED_300))
+            return
+
+        img_base64 = resultado.get("encodedImage")
+        payload = resultado.get("payload")
+        
+        async def copiar_payload(e):
+            try:
+                await ft.Clipboard().set(payload)
+                self.page.show_dialog(ft.SnackBar(ft.Text("PIX Total copiado com sucesso!"), bgcolor=ft.Colors.GREEN_600))
+            except:
+                self.page.show_dialog(ft.SnackBar(ft.Text("Erro ao copiar PIX!"), bgcolor=ft.Colors.RED_600))
+
+        # Reutilizando o padrão de diálogo do sistema
+        title = ft.Row(
+            controls=[
+                ft.Icon(ft.Icons.PIX, color=ft.Colors.GREEN_600),
+                ft.Text("Pagar Total via Pix", size=16, weight=ft.FontWeight.BOLD)
+            ]
+        )
+        qrcode_pix = ft.Image(src=img_base64, width=200, height=200)
+        self.txt_pix = ft.Text(value=payload, selectable=True, color=ft.Colors.BLUE_600)
+
+        btn_copy = ft.TextButton(
+            on_click=copiar_payload,
+            content=ft.Row([ft.Icon(ft.Icons.COPY,), ft.Text("Copiar")], tight=True), 
+            style=ft.ButtonStyle(
+                color=ft.Colors.BLUE_600,
+                bgcolor=ft.Colors.WHITE,
+                side=ft.BorderSide(1, ft.Colors.BLUE_600),
+                elevation=2,
+            )
+        )
+
+        btn_cancel = ft.TextButton(
+            on_click=lambda e: self.page.pop_dialog(),
+            content=ft.Row([ft.Icon(ft.Icons.CANCEL,), ft.Text("Fechar")], tight=True), 
+            style=ft.ButtonStyle(
+                color=ft.Colors.RED_300,
+                bgcolor=ft.Colors.WHITE,
+                side=ft.BorderSide(1, ft.Colors.RED_300),
+                elevation=2,
+            )
+        )
+
+        pop_up = ft.AlertDialog(
+            title=title,
+            content=ft.Column(
+                width=300,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                tight=True,
+                controls=[qrcode_pix, self.txt_pix]
+            ),
+            actions=[btn_copy, btn_cancel]
+        )
+
+        self.page.show_dialog(pop_up)
 
     def pagar_divida(self, data: Registro):
         # Mostra um indicador de carregamento
@@ -218,8 +401,7 @@ class TabRegistros(ft.Column):
                 ft.TextButton("Fechar", on_click=lambda e: self.page.pop_dialog())
             ]
         )
-        
-########## Novo dialogo para pagamento único
+
         # Titulo Building
         title=ft.Row(
             controls=[
@@ -268,141 +450,6 @@ class TabRegistros(ft.Column):
 
         self.page.show_dialog(pop_up)
 
-        # self.page.show_dialog(dialogo)
-
-
-class PainelRegistrosComum(ft.Column):
-    """Painel que envolve TabRegistros e adiciona o cabeçalho com total e botão de pagamento."""
-    def __init__(self, tab_comuns: TabRegistros):
-        super().__init__()
-        self.expand = True
-        self.spacing = 10
-        self.tab_comuns = tab_comuns
-        self.tab_comuns.on_dividas_loaded = self.atualizar_painel
-        
-        self.txt_titulo = ft.Text("Total Pendente:", weight=ft.FontWeight.BOLD, size=12)
-        self.txt_valor = ft.Text("R$ 0,00", weight=ft.FontWeight.BOLD, size=16, color=ft.Colors.RED_600)
-
-        self.txt_total = ft.Row(
-            controls=[
-                ft.Icon(ft.Icons.MONETIZATION_ON, color=ft.Colors.GREEN_600),
-                ft.Column(
-                    spacing=0,
-                    controls=[
-                        self.txt_titulo,
-                        self.txt_valor
-                    ]
-                )
-            ],
-            vertical_alignment=ft.CrossAxisAlignment.CENTER,
-            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-        )
-        
-        self.btn_pagar_total = ft.FilledButton(
-            content="Pagar",
-            icon=ft.Icons.MONEY,
-            icon_color=ft.Colors.GREEN_600,
-            on_click=self.gerar_pagamento_total,
-            style=ft.ButtonStyle(
-                color=ft.Colors.GREEN_600,
-                bgcolor=ft.Colors.WHITE,
-                elevation=2,
-            ),
-        )
-        
-        self.header = ft.Card(
-            elevation=2,
-            bgcolor=ft.Colors.ORANGE_200,
-            margin=ft.Margin.only(bottom=15),
-            content=ft.Container(
-                padding=10,
-                content=ft.Row(
-                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                    controls=[
-                        self.txt_total,
-                        self.btn_pagar_total
-                    ]
-                )
-            )
-        )
-        
-        self.controls = [
-            self.tab_comuns,
-            self.header,
-        ]
-
-    def did_mount(self):
-        self.atualizar_painel()
-
-    def atualizar_painel(self):
-        dividas = self.tab_comuns.dividas_pendentes
-        total = sum(d.valor for d in dividas) if dividas else 0
-        self.txt_valor.value = f"Total Pendente: R$ {total:,.2f}"
-        self.btn_pagar_total.disabled = total <= 0
-        self.update()
-
-    def gerar_pagamento_total(self, e):
-        dividas = self.tab_comuns.dividas_pendentes
-        if not dividas:
-            return
-            
-        total = sum(d.valor for d in dividas)
-        # Titulo Building
-        title=ft.Row(
-            controls=[
-                ft.Icon(ft.Icons.PIX, color=ft.Colors.GREEN_600),
-                ft.Text("Copie a Chave para Pagar", size=16, weight=ft.FontWeight.BOLD)
-            ]
-        )
-
-        # Corpo / Meio Building
-        qrcode_pix = ft.Image(src='local/qrpix.png', width=200, height=200)
-        self.txt_pix = ft.Text(value="tes.mestrevicentemarques@udv.org.br", selectable=True, color=ft.Colors.BLUE_600)
-
-        # Botões de Ação Building
-        btn_copy = ft.TextButton(
-                on_click=self.copiar_pix,
-                content=ft.Row([ft.Icon(ft.Icons.COPY,), ft.Text("Copiar")], tight=True), 
-                style=ft.ButtonStyle(
-                    color=ft.Colors.BLUE_600,
-                    bgcolor=ft.Colors.WHITE,
-                    side=ft.BorderSide(1, ft.Colors.BLUE_600),
-                    elevation=2,
-                )
-            )
-
-        btn_cancel = ft.TextButton(
-                on_click=lambda e: self.page.pop_dialog(),
-                content=ft.Row([ft.Icon(ft.Icons.CANCEL,), ft.Text("Fechar")], tight=True), 
-                style=ft.ButtonStyle(
-                    color=ft.Colors.RED_300,
-                    bgcolor=ft.Colors.WHITE,
-                    side=ft.BorderSide(1, ft.Colors.RED_300),
-                    elevation=2,
-                )
-            )
-
-        pop_up = ft.AlertDialog(
-            title=title,
-            content=ft.Column(
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                tight=True,
-                controls=[qrcode_pix,self.txt_pix]
-            ),
-            actions=[btn_copy,btn_cancel]
-        )
-        self.page.show_dialog(pop_up)
-
-    async def copiar_pix(self, e):
-        try:
-            await ft.Clipboard().set(self.txt_pix.value)
-            self.page.show_dialog(
-                ft.SnackBar(ft.Text("PIX copiado com sucesso!"), bgcolor=ft.Colors.GREEN_300)
-            )
-        except:
-            self.page.show_dialog(
-                ft.SnackBar(ft.Text("Erro ao copiar PIX!"), bgcolor=ft.Colors.RED_300)
-            )
 
 # --- Registros do Asaas ---
 class RegistroAsaasCard(ft.Card):
@@ -445,12 +492,24 @@ class RegistroAsaasCard(ft.Card):
         self.titulo = ft.Row(tight=True, alignment=ft.MainAxisAlignment.START, wrap=True)
         self.info = ft.Row(tight=True, alignment=ft.MainAxisAlignment.START, wrap=True, spacing=8)
         
-        self.btn_pagar = ft.IconButton(
-            icon=ft.Icons.PAYMENT, 
-            icon_color=ft.Colors.BLUE_400, 
+        # self.btn_pagar = ft.IconButton(
+        #     icon=ft.Icons.PAYMENT, 
+        #     icon_color=ft.Colors.BLUE_400, 
+        #     tooltip="Opções de Pagamento Asaas", 
+        #     on_click=self.open_dialog_pagar
+        # )
+        self.btn_pagar = ft.TextButton(
+            height=25,
+            on_click=self.open_dialog_pagar,
             tooltip="Opções de Pagamento Asaas", 
-            on_click=self.open_dialog_pagar
-        )
+            content=ft.Row([ft.Icon(ft.Icons.PAYMENT,), ft.Text("Pagar")], tight=True),
+            style=ft.ButtonStyle(
+                    color=ft.Colors.BLUE_600,
+                    bgcolor=ft.Colors.WHITE,
+                    side=ft.BorderSide(1, ft.Colors.BLUE_600),
+                    elevation=2,
+                )
+            )
 
         self.__definir_valores()
 
@@ -459,8 +518,8 @@ class RegistroAsaasCard(ft.Card):
             spacing=4,
             controls=[
                 ft.Container(
-                    padding=ft.Padding.only(left=10, right=10, top=10, bottom=5),
                     content=ft.Column(
+                        margin=ft.Margin.only(left=10, right=10, top=5, bottom=5),
                         tight=True,
                         controls=[
                             self.titulo,
@@ -471,7 +530,7 @@ class RegistroAsaasCard(ft.Card):
                 ),
                 ft.Divider(height=1, thickness=0.5),
                 ft.Row(
-                    margin=ft.Margin.symmetric(horizontal=10),
+                    margin=ft.Margin.only(top=5, bottom=5, left=10, right=10),
                     alignment=ft.MainAxisAlignment.END,
                     controls=[self.btn_pagar],
                 ),
@@ -708,7 +767,6 @@ class Dashboard(ft.View):
 
         # Instanciar as abas
         self.tab_comuns = TabRegistros(cpf=self.user_cpf)
-        self.painel_comum = PainelRegistrosComum(tab_comuns=self.tab_comuns)
         self.tab_asaas = TabRegistrosAsaas(cpf=self.user_cpf)
 
         # Estrutura com Tabs
@@ -726,7 +784,7 @@ class Dashboard(ft.View):
             controls=[
                 ft.Container(
                     padding=ft.Padding.all(10),
-                    content=self.painel_comum
+                    content=self.tab_comuns
                 ),
                 ft.Container(
                     padding=ft.Padding.all(10),
