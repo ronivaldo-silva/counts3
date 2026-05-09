@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from gears.asaas_api import AsaasAPI
+from models.asaas_api import AsaasAPI
 
 class Asaas:
     """
@@ -10,6 +10,21 @@ class Asaas:
     
     # Criamos uma única instância para toda a aplicação
     _api = AsaasAPI()
+    _cached_pix_key = None
+    
+    @staticmethod
+    def get_pix_key():
+        """
+        Retorna a chave Pix ativa da conta, buscando na API apenas se não estiver em cache.
+        """
+        if Asaas._cached_pix_key:
+            return Asaas._cached_pix_key
+        
+        chaves = Asaas._api.list_pix_keys(limit=1)
+        if chaves and "data" in chaves and chaves["data"]:
+            Asaas._cached_pix_key = chaves["data"][0]["key"]
+            return Asaas._cached_pix_key
+        return None
     
     @staticmethod
     def get_customerid(cpf: str):
@@ -53,3 +68,27 @@ class Asaas:
         Busca os dados do Pix (QR Code e Payload) para uma cobrança.
         """
         return Asaas._api.get_pix_qr_code(payment_id)
+
+    @staticmethod
+    def gerar_pix_estatico(valor: float, descricao: str, id_divida: str = None):
+        """
+        Orquestra a criação de um Pix Estático:
+        1. Coleta a primeira chave Pix ativa da conta (usando cache).
+        2. Gera um QR Code estático com validade de 10 minutos (600s).
+        """
+        # 1. Coleta a chave Pix (usa cache interno)
+        address_key = Asaas.get_pix_key()
+        
+        if not address_key:
+            print("Erro: Nenhuma chave Pix encontrada na conta Asaas.")
+            return None
+            
+        # 2. Gera o QR Code Estático
+        # Conforme solicitado: duração 10 min (600s)
+        return Asaas._api.create_static_pix_qr_code(
+            addressKey=address_key,
+            description=f"{descricao} | Ref: {id_divida}" if id_divida else descricao,
+            value=valor,
+            expirationSeconds=600, # 10 minutos
+            allowsMultiplePayments=False
+        )

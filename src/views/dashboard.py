@@ -149,15 +149,53 @@ class TabRegistros(ft.Column):
         self.carregar_dividas()
         self.update()
 
-    def pagar_divida(self, data:Registro):
-        # Lógica de pagamento provisória para dívida comum
-        self.page.show_dialog(
-            ft.AlertDialog(
-                title=ft.Text("Aviso"),
-                content=ft.Text(f"Aqui será mostrado um QR-Code Comum.\n\nDetalhes:\n{data.categoria_rel.categoria} - R$ {data.valor:,.2f}"),
-                actions=[ft.TextButton("Entendi", on_click=lambda e: self.page.pop_dialog())]
-            )
+    def pagar_divida(self, data: Registro):
+        # Mostra um indicador de carregamento
+        loading_dialog = ft.AlertDialog(
+            content=ft.Row([ft.ProgressRing(), ft.Text(" Gerando QR Code...")], tight=True),
         )
+        self.page.show_dialog(loading_dialog)
+
+        # Gera o Pix Estático via Asaas
+        # Usamos o ID da dívida como externalReference (embutido na descrição para static)
+        try:
+            resultado = Asaas.gerar_pix_estatico(
+                valor=data.valor,
+                descricao=f"Pgto: {data.categoria_rel.categoria}",
+                id_divida=str(data.id)
+            )
+            self.page.pop_dialog() # Fecha o loading
+        except:
+            self.page.pop_dialog() # Fecha o loading
+            self.page.show_dialog(ft.SnackBar(ft.Text("Erro ao gerar QR Code Pix."), bgcolor=ft.Colors.RED_300))
+            return
+
+        # Prepara elementos do diálogo
+        img_base64 = resultado.get("encodedImage")
+        payload = resultado.get("payload")
+        
+        async def copiar_payload(e):
+            await ft.Clipboard().set(payload)
+            self.page.show_dialog(ft.SnackBar(ft.Text("Código Pix copiado!"), bgcolor=ft.Colors.GREEN_600))
+
+        dialogo = ft.AlertDialog(
+            title=ft.Row([ft.Icon(ft.Icons.PIX, color=ft.Colors.GREEN_600), ft.Text("Pagar via Pix")], tight=True),
+            content=ft.Column(
+                tight=True,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                controls=[
+                    ft.Image(src=img_base64, width=200, height=200),
+                    ft.Text("Aponte o app do seu banco ou copie o código abaixo:", size=12, text_align=ft.TextAlign.CENTER),
+                    ft.Text("Válido por 10 minutos.", size=11, italic=True, color=ft.Colors.GREY_600)
+                ]
+            ),
+            actions=[
+                ft.TextButton("Copiar Código", on_click=copiar_payload),
+                ft.TextButton("Fechar", on_click=lambda e: self.page.pop_dialog())
+            ]
+        )
+        
+        self.page.show_dialog(dialogo)
 
 
 class PainelRegistrosComum(ft.Column):

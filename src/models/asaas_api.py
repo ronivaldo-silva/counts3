@@ -201,3 +201,31 @@ class AsaasAPI:
         Endpoint: /payments/{id}/pixQrCode
         """
         return self._request("GET", f"/payments/{payment_id}/pixQrCode")
+
+    # ==========================================
+    # PIX (Address Keys & QR Codes)
+    # ==========================================
+
+    def list_pix_keys(self, offset=0, limit=10):
+        """
+        Lista as chaves Pix cadastradas na conta.
+        """
+        params = {
+            "offset": offset,
+            "limit": limit
+        }
+        return self._request("GET", "/pix/addressKeys", params=params)
+
+    def create_static_pix_qr_code(self, addressKey, description, value=None, expirationSeconds=None, allowsMultiplePayments=False):
+        """
+        Cria um QR Code estático do Pix com valor e tempo de expiração.
+        """
+        data = {
+            "addressKey": addressKey,
+            "description": description,
+            "value": value,
+            "expirationSeconds": expirationSeconds,
+            "allowsMultiplePayments": allowsMultiplePayments
+        }
+        return self._request("POST", "/pix/qrCodes/static", data=data)
+
