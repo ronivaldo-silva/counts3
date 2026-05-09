@@ -21,7 +21,6 @@ class RegistroCard(ft.Card):
         self.info = ft.Row(tight=True, alignment=ft.MainAxisAlignment.START, wrap=True, spacing=8)
 
         self.btn_pagar = ft.TextButton(
-            height=25,
             on_click=self._pagar,
             content=ft.Row([ft.Icon(ft.Icons.PAYMENT,), ft.Text("Pagar")], tight=True),
             style=ft.ButtonStyle(
@@ -132,7 +131,6 @@ class RegistroTotalCard(ft.Card):
         self.info = ft.Row(tight=True, alignment=ft.MainAxisAlignment.START, wrap=True, spacing=8)
 
         self.btn_pagar = ft.TextButton(
-            height=25,
             on_click=self._pagar,
             content=ft.Row([ft.Icon(ft.Icons.PAYMENTS,), ft.Text("Pagar Tudo")], tight=True),
             style=ft.ButtonStyle(
@@ -499,7 +497,6 @@ class RegistroAsaasCard(ft.Card):
         #     on_click=self.open_dialog_pagar
         # )
         self.btn_pagar = ft.TextButton(
-            height=25,
             on_click=self.open_dialog_pagar,
             tooltip="Opções de Pagamento Asaas", 
             content=ft.Row([ft.Icon(ft.Icons.PAYMENT,), ft.Text("Pagar")], tight=True),
@@ -773,7 +770,7 @@ class Dashboard(ft.View):
         self.abas = ft.TabBar(
             indicator_color=ft.Colors.AMBER_300,
             tabs=[
-                ft.Tab(label="Obrigações Peculiares", icon=ft.Icons.HOME_WORK),
+                ft.Tab(label="Obrigações Pecuniárias", icon=ft.Icons.HOME_WORK),
                 ft.Tab(label="Mensalidades Boletos", icon=ft.Icons.RECEIPT_LONG),
             ],
         )
