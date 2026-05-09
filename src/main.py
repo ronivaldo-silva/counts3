@@ -19,7 +19,7 @@ async def main(page: ft.Page):
     page.route
     # -- Rehidratação de Sessão --
     if not page.session.store.contains_key("user_cpf"):
-        stored_cpf = await ft.SharedPreferences().get("user_cpf")
+        stored_cpf = None #await ft.SharedPreferences().get("user_cpf")
         if stored_cpf:
             usuario = DBControl.get_usuario_por_cpf(stored_cpf)
             if usuario:
