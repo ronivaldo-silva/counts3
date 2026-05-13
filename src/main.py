@@ -1,7 +1,7 @@
 import flet as ft
-from fastapi import FastAPI, Request, HTTPException, Header
-import flet.fastapi as flet_fastapi
-import uvicorn
+# from fastapi import FastAPI, Request, HTTPException, Header
+# import flet.fastapi as flet_fastapi
+# import uvicorn
 
 from views.login import Login
 from views.dashboard import Dashboard
@@ -15,25 +15,25 @@ import os
 load_dotenv()
 HOST = os.getenv("HOST", '0.0.0.0')
 PORT = int(os.getenv("PORT", '10000'))
-ASSETSPATH = os.getenv("ASSETSPATH", 'src\\assets')
+ASSETSPATH = os.getenv("ASSETSPATH", 'assets')
 ASAAS_WEBHOOK_TOKEN = os.getenv("ASAAS_WEBHOOK_TOKEN", "")
 
-app = FastAPI()
+# app = FastAPI()
 
-@app.post("/webhook/asaas")
-async def asaas_webhook(request: Request, asaas_access_token: str = Header(None)):
-    # Valida Token (recomendado na documentação do Asaas)
-    if ASAAS_WEBHOOK_TOKEN and asaas_access_token != ASAAS_WEBHOOK_TOKEN:
-        raise HTTPException(status_code=401, detail="Token de autorizacao invalido")
+# @app.post("/webhook/asaas")
+# async def asaas_webhook(request: Request, asaas_access_token: str = Header(None)):
+#     # Valida Token (recomendado na documentação do Asaas)
+#     if ASAAS_WEBHOOK_TOKEN and asaas_access_token != ASAAS_WEBHOOK_TOKEN:
+#         raise HTTPException(status_code=401, detail="Token de autorizacao invalido")
     
-    try:
-        data = await request.json()
-        print(f"Webhook recebido: {data.get('event')}")
-        WebhookControl.processar_evento(data)
-        return {"status": "ok"}
-    except Exception as e:
-        print(f"Erro processando webhook: {e}")
-        raise HTTPException(status_code=400, detail="Erro no processamento do webhook")
+#     try:
+#         data = await request.json()
+#         print(f"Webhook recebido: {data.get('event')}")
+#         WebhookControl.processar_evento(data)
+#         return {"status": "ok"}
+#     except Exception as e:
+#         print(f"Erro processando webhook: {e}")
+#         raise HTTPException(status_code=400, detail="Erro no processamento do webhook")
 
 async def main(page: ft.Page):
     page.title = "Counts3"
@@ -105,11 +105,11 @@ async def main(page: ft.Page):
 
         # Criar página informativa com mensagem "Página não Existente"
 
-app.mount("/", flet_fastapi.app(main, assets_dir=ASSETSPATH))
+# app.mount("/", flet_fastapi.app(main))
 
 if __name__ == "__main__":
     # Cria os recursos de banco locais e injeta dados básicos se virgem
     # Roda uma única vez na inicialização global do app
     seed_basic_data()
     
-    uvicorn.run(app, host=HOST, port=PORT)
+    ft.run(main=main, view=ft.AppView.WEB_BROWSER, port=PORT)

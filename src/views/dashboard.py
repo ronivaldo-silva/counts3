@@ -345,6 +345,41 @@ class TabRegistros(ft.Column):
         )
 
         self.page.show_dialog(pop_up)
+        
+        # Dispara o serviço para confirmar o pagamento total (externalReference 777)
+        self.page.run_task(self.servico_confirmacao_pagamento, "777", pop_up)
+        
+    async def servico_confirmacao_pagamento(self, id_divida: str, pop_up):
+        import asyncio
+        await asyncio.sleep(15)
+        try:
+            resposta = Asaas._api.list_cobrancas(externalReference=id_divida)
+            status = "PENDING"
+            
+            if resposta and isinstance(resposta, dict) and resposta.get("data"):
+                for cob in resposta["data"]:
+                    if cob.get("status") in ["RECEIVED", "CONFIRMED"]:
+                        status = cob.get("status")
+                        break
+            
+            if status in ["RECEIVED", "CONFIRMED"]:
+                self.page.close(pop_up)
+                
+                try:
+                    DBControl.quitar_registro(int(id_divida))
+                    self.atualizar()
+                except ValueError:
+                    pass
+                
+                snack = ft.SnackBar(content=ft.Text("Pagamento confirmado com sucesso!"), bgcolor=ft.Colors.GREEN_600)
+                self.page.show_dialog(snack)
+            else:
+                snack = ft.SnackBar(content=ft.Text("O pagamento não foi realizado."), bgcolor=ft.Colors.ORANGE_500)
+                self.page.show_dialog(snack)
+                
+        except Exception as e:
+            snack = ft.SnackBar(content=ft.Text(f"Erro ao consultar status do pagamento: {e}."), bgcolor=ft.Colors.RED_500)
+            self.page.show_dialog(snack)
 
     def pagar_divida(self, data: Registro):
         # Mostra um indicador de carregamento
@@ -447,6 +482,9 @@ class TabRegistros(ft.Column):
         )
 
         self.page.show_dialog(pop_up)
+        
+        # Dispara o serviço para confirmar o pagamento da dívida
+        self.page.run_task(self.servico_confirmacao_pagamento, str(data.id), pop_up)
 
 
 # --- Registros do Asaas ---
