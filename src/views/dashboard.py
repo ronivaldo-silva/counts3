@@ -684,37 +684,40 @@ class TabRegistrosAsaas(ft.Column):
             self.controls.clear()
             
             has_more = True
-            while has_more:
-                try:
-                    resposta_pagamentos = Asaas.get_cobrancas(
-                        customer_id=self.customer_id,
-                        # status="PENDING",
-                        offset=self.__offset,
-                        limit=self.__limit,
-                        ate_data_venc=datetime(2026, 12, 31),
-                    )
-                except Exception as e:
-                    self.controls.append(ft.Text(f"Erro ao buscar na API Asaas: {str(e)}", color=ft.Colors.RED))
-                    self.update()
-                    return
-                
-                if resposta_pagamentos and resposta_pagamentos.get("data"):
-                    # Processa e adiciona na lista
-                    for pag in resposta_pagamentos["data"]:
-                        self.controls.append(RegistroAsaasCard(data_response=pag))
-                        
-                    self.page.update()
-                    has_more = resposta_pagamentos.get("hasMore", False)
-                    self.__offset += self.__limit
-                    await asyncio.sleep(0.1)
-                else:
-                    has_more = False
+            for status in ["OVERDUE", "PENDING"]:
+                self.__offset = 0
+                has_more = True
+                while has_more:
+                    try:
+                        resposta_pagamentos = Asaas.get_cobrancas(
+                            customer_id=self.customer_id,
+                            status=status,
+                            offset=self.__offset,
+                            limit=self.__limit,
+                            ate_data_venc=datetime(2026, 12, 31),
+                        )
+                    except Exception as e:
+                        self.controls.append(ft.Text(f"Erro ao buscar na API Asaas ({status}): {str(e)}", color=ft.Colors.RED))
+                        self.update()
+                        return
+                    
+                    if resposta_pagamentos and resposta_pagamentos.get("data"):
+                        # Processa e adiciona na lista
+                        for pag in resposta_pagamentos["data"]:
+                            self.controls.append(RegistroAsaasCard(data_response=pag))
+                            
+                        self.page.update()
+                        has_more = resposta_pagamentos.get("hasMore", False)
+                        self.__offset += self.__limit
+                        await asyncio.sleep(0.1)
+                    else:
+                        has_more = False
                     
             if len(self.controls) == 0:
-                self.controls.append(ft.Container(padding=20, content=ft.Text("Nenhuma cobrança Asaas pendente.", italic=True, color=ft.Colors.GREY_500)))
+                self.controls.append(ft.Container(padding=20, content=ft.Text("Nenhuma cobrança Asaas pendente ou atrasada.", italic=True, color=ft.Colors.GREY_500)))
                 self.update()
             else:
-                self.controls.sort(key=lambda x: x.data.get("dueDate"))
+                self.controls.sort(key=lambda x: x.data.get("dueDate", ""))
                 self.update()
                 
         except Exception as e:
