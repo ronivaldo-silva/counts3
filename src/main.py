@@ -8,7 +8,7 @@ from views.dashboard import Dashboard
 from views.managment import Managment
 from database.config import seed_basic_data
 from gears.db_control import DBControl
-from gears.webhook_control import WebhookControl
+# from gears.webhook_control import WebhookControl
 from dotenv import load_dotenv
 import os
 

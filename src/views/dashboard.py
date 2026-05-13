@@ -363,7 +363,7 @@ class TabRegistros(ft.Column):
                         break
             
             if status in ["RECEIVED", "CONFIRMED"]:
-                self.page.close(pop_up)
+                self.page.pop_dialog()
                 
                 try:
                     DBControl.quitar_registro(int(id_divida))
@@ -374,10 +374,12 @@ class TabRegistros(ft.Column):
                 snack = ft.SnackBar(content=ft.Text("Pagamento confirmado com sucesso!"), bgcolor=ft.Colors.GREEN_600)
                 self.page.show_dialog(snack)
             else:
+                self.page.pop_dialog()
                 snack = ft.SnackBar(content=ft.Text("O pagamento não foi realizado."), bgcolor=ft.Colors.ORANGE_500)
                 self.page.show_dialog(snack)
                 
         except Exception as e:
+            self.page.pop_dialog()
             snack = ft.SnackBar(content=ft.Text(f"Erro ao consultar status do pagamento: {e}."), bgcolor=ft.Colors.RED_500)
             self.page.show_dialog(snack)
 
