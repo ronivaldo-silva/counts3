@@ -216,7 +216,7 @@ class AsaasAPI:
         }
         return self._request("GET", "/pix/addressKeys", params=params)
 
-    def create_static_pix_qr_code(self, addressKey, description, value=None, expirationSeconds=None, allowsMultiplePayments=False):
+    def create_static_pix_qr_code(self, addressKey, description, value=None, expirationSeconds=None, externalReference=None):
         """
         Cria um QR Code estático do Pix com valor e tempo de expiração.
         """
@@ -224,8 +224,11 @@ class AsaasAPI:
             "addressKey": addressKey,
             "description": description,
             "value": value,
-            "expirationSeconds": expirationSeconds,
-            "allowsMultiplePayments": allowsMultiplePayments
+            "format": "ALL",
+            "expirationSeconds": expirationSeconds
         }
+        if externalReference:
+            data["externalReference"] = str(externalReference)
+            
         return self._request("POST", "/pix/qrCodes/static", data=data)
 

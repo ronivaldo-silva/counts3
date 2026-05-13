@@ -92,5 +92,4 @@ class Asaas:
             description=descricao_curta,
             value=valor,
             expirationSeconds=600, # 10 minutos
-            allowsMultiplePayments=False
         )
