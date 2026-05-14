@@ -227,6 +227,40 @@ class TabRegistros(ft.Column):
         self.on_dividas_loaded = None
         self.carregar_dividas()
 
+    def did_mount(self):
+        self.page.run_task(self.verificar_pagamentos_pendentes)
+
+    async def verificar_pagamentos_pendentes(self):
+        if not self.dividas_pendentes:
+            return
+            
+        atualizou_algo = False
+        for divida in list(self.dividas_pendentes):
+            id_divida = str(divida.id)
+            try:
+                resposta = Asaas._api.list_cobrancas(externalReference=id_divida)
+                status = "PENDING"
+                
+                if resposta and isinstance(resposta, dict) and resposta.get("data"):
+                    for cob in resposta["data"]:
+                        if cob.get("status") in ["RECEIVED", "CONFIRMED"]:
+                            status = cob.get("status")
+                            break
+                
+                if status in ["RECEIVED", "CONFIRMED"]:
+                    try:
+                        DBControl.quitar_registro(int(id_divida))
+                        atualizou_algo = True
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+                
+        if atualizou_algo:
+            self.atualizar()
+            snack = ft.SnackBar(content=ft.Text("Pagamentos pendentes foram atualizados automaticamente."), bgcolor=ft.Colors.GREEN_600)
+            self.page.show_dialog(snack)
+
     def carregar_dividas(self):
         dividas_reais = DBControl.get_registros_por_cpf(self.cpf, pendente=True)
         self.dividas_pendentes = dividas_reais if dividas_reais else []
@@ -351,7 +385,7 @@ class TabRegistros(ft.Column):
         
     async def servico_confirmacao_pagamento(self, id_divida: str, pop_up):
         import asyncio
-        await asyncio.sleep(15)
+        await asyncio.sleep(60)
         try:
             resposta = Asaas._api.list_cobrancas(externalReference=id_divida)
             status = "PENDING"

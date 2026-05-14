@@ -74,7 +74,7 @@ class Asaas:
         """
         Orquestra a criação de um Pix Estático:
         1. Coleta a primeira chave Pix ativa da conta (usando cache).
-        2. Gera um QR Code estático com validade de 10 minutos (600s).
+        2. Gera um QR Code estático com validade de 1 minuto (60s).
         """
         # 1. Coleta a chave Pix (usa cache interno)
         address_key = Asaas.get_pix_key()
@@ -90,6 +90,6 @@ class Asaas:
             addressKey=address_key,
             description=descricao_curta,
             value=valor,
-            expirationSeconds=15, # 15 segundos
+            expirationSeconds=60, # 60 segundos
             externalReference=id_divida
         )
