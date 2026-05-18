@@ -84,9 +84,9 @@ def seed_basic_data():
             if count_classificacoes == 0:
                 print("🌱 Seeding Classificações...")
                 classifications = [
-                    Classificacao(classificacao="Pendente"),
                     Classificacao(classificacao="Vencido"),
                     Classificacao(classificacao="Pago"),
+                    Classificacao(classificacao="Pendente"),
                     Classificacao(classificacao="Parcial")
                 ]
                 db.add_all(classifications)

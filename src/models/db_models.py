@@ -75,7 +75,7 @@ class Registro(Base):
     creado_em: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     
     # New Columns for Debt Abatement
-    classificacao_id: Mapped[int] = mapped_column(ForeignKey("classificacoes.id"), default=1)
+    classificacao_id: Mapped[int] = mapped_column(ForeignKey("classificacoes.id"), default=3)
     saldo: Mapped[float] = mapped_column(Float, default=0.0)
 
     # Relationships

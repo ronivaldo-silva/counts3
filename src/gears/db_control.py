@@ -229,6 +229,7 @@ class DBControl:
     def criar_registro(user_id: int, category_id: int, valor: float, data_debito: date, data_prevista: date, type_id: int = 0):
         try:
             with SessionLocal() as db:
+                classificacao_pendente = db.scalar(select(Classificacao).where(Classificacao.classificacao == "Pendente"))
                 novo_registro = Registro(
                     user_id=user_id,
                     type_id=type_id,
@@ -237,7 +238,7 @@ class DBControl:
                     data_debito=data_debito,
                     data_prevista=data_prevista,
                     saldo=valor, # Initialize balance as full value
-                    classificacao_id=1 # Pendente by default
+                    classificacao_id=classificacao_pendente.id if classificacao_pendente else 3
                 )
                 db.add(novo_registro)
                 db.commit()
@@ -269,7 +270,13 @@ class DBControl:
             with SessionLocal() as db:
                 registro = db.scalar(select(Registro).where(Registro.id == id_registro))
                 if registro:
-                    registro.classificacao_id = 3
+                    classificacao_pago = db.scalar(select(Classificacao).where(Classificacao.classificacao == "Pago"))
+                    if classificacao_pago:
+                        registro.classificacao_id = classificacao_pago.id
+                    else:
+                        registro.classificacao_id = 2
+                        
+                    registro.saldo = 0.0
                     db.commit()
                     return True, "Registro quitado com sucesso!"
                 return False, "Registro não encontrado."
@@ -301,9 +308,12 @@ class DBControl:
     @staticmethod
     def get_estatisticas_dividas_usuario(user_id: int):
         with SessionLocal() as db:
+            classifs = db.scalars(select(Classificacao.id).where(Classificacao.classificacao.in_(["Pendente", "Vencido"]))).all()
+            if not classifs:
+                classifs = [3, 1]
             stmt = select(Registro).where(
                 Registro.user_id == user_id,
-                Registro.classificacao_id.in_([1, 2])
+                Registro.classificacao_id.in_(classifs)
             )
             registros = db.scalars(stmt).all()
             total = sum(r.valor for r in registros)
@@ -330,7 +340,8 @@ class DBControl:
             )
             
             if pendente:
-                stmt = stmt.where(Registro.classificacao_id == 1)
+                classificacao_pendente = db.scalar(select(Classificacao.id).where(Classificacao.classificacao == "Pendente"))
+                stmt = stmt.where(Registro.classificacao_id == (classificacao_pendente if classificacao_pendente else 3))
             if vencimento:
                 stmt = stmt.where(Registro.data_prevista <= vencimento)
             

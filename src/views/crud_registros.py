@@ -268,21 +268,21 @@ class FormRegistro(ft.AlertDialog):
 
     def __classificador_init(self):
         if self.data:
-            if self.data.classificacao_id == 3: # Caso pago
+            if self.data.classificacao_rel.classificacao == "Pago":
                 self.switch_pago.value = True
-                self.switch_pago.key = 3
+                self.switch_pago.key = self.data.classificacao_id
             self.switch_pago.label = self.data.classificacao_rel.classificacao
 
     def __classificador(self,e:ft.Event[ft.Switch]=None):
         if self.switch_pago.value:
-            self.switch_pago.key = 3
+            self.switch_pago.key = next((c.id for c in DBControl.get_all_classificacoes() if c.classificacao == "Pago"), 3)
             self.switch_pago.label = "Pago"
         else:
             if self.input_date_prev.current_date > date.today():
-                self.switch_pago.key = 1
+                self.switch_pago.key = next((c.id for c in DBControl.get_all_classificacoes() if c.classificacao == "Pendente"), 1)
                 self.switch_pago.label = "Pendente"
             else:
-                self.switch_pago.key = 2
+                self.switch_pago.key = next((c.id for c in DBControl.get_all_classificacoes() if c.classificacao == "Vencido"), 2)
                 self.switch_pago.label = "Vencido"
 
 
@@ -335,11 +335,8 @@ class ActionPanel(ft.Container):
         self.dropdown_classificacao = ft.Dropdown(
             label="Classificação",
             menu_height=300,
-            options=[
-                ft.DropdownOption(text="Todas", key="Todas"),
-                ft.DropdownOption(text="Pendente", key="1"),
-                ft.DropdownOption(text="Vencido", key="2"),
-                ft.DropdownOption(text="Pago", key="3"),
+            options=[ft.DropdownOption(text="Todas", key="Todas")] + [
+                ft.DropdownOption(text=c.classificacao, key=str(c.id)) for c in DBControl.get_all_classificacoes()
             ],
             value="Todas"
         )
@@ -528,7 +525,9 @@ class CardRegistro(ft.Card):
         self.parent.update()
     
     def quitar_divida(self):
-        DBControl.quitar_registro(self.data.id)
+        sucesso, msg = DBControl.quitar_registro(self.data.id)
+        if not sucesso:
+            self.page.show_dialog(ft.SnackBar(content=ft.Text(msg), bgcolor=ft.Colors.RED_500))
         self.auto_update()
 
 class TabRegistros(ft.Column):
