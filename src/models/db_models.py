@@ -21,6 +21,7 @@ class Usuario(Base):
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     actived: Mapped[bool] = mapped_column(Boolean, default=True)
     deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    data_nascimento: Mapped[Optional[date]] = mapped_column(Date, nullable=True, default=None)
     creado_em: Mapped[datetime] = mapped_column(DateTime, default=func.now())
 
     # Relationships

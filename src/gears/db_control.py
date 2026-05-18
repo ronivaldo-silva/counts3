@@ -50,7 +50,7 @@ class DBControl:
             return usuario
 
     @staticmethod
-    def atualizar_usuario(id_usuario: int, cpf: str, nome: str, senha: str, is_admin: bool, actived: bool):
+    def atualizar_usuario(id_usuario: int, cpf: str, nome: str, senha: str, is_admin: bool, actived: bool, data_nascimento: date = None):
         try:
             with SessionLocal() as db:
                 usuario = db.scalar(select(Usuario).where(Usuario.id == id_usuario))
@@ -61,6 +61,7 @@ class DBControl:
                         usuario.senha = senha
                     usuario.is_admin = is_admin
                     usuario.actived = actived
+                    usuario.data_nascimento = data_nascimento
                     db.commit()
                     return True, "Usuário atualizado com sucesso!"
                 return False, "Usuário não encontrado."
@@ -68,7 +69,7 @@ class DBControl:
             return False, f"Erro ao atualizar usuário: {str(e)}"
 
     @staticmethod
-    def criar_usuario_completo(cpf: str, nome: str, senha: str, is_admin: bool, actived: bool):
+    def criar_usuario_completo(cpf: str, nome: str, senha: str, is_admin: bool, actived: bool, data_nascimento: date = None):
         try:
             with SessionLocal() as db:
                 existe = db.scalar(select(Usuario).where(Usuario.cpf == cpf))
@@ -79,7 +80,8 @@ class DBControl:
                     nome=nome,
                     senha=senha,
                     is_admin=is_admin,
-                    actived=actived
+                    actived=actived,
+                    data_nascimento=data_nascimento
                 )
                 db.add(novo_usuario)
                 db.commit()
@@ -123,6 +125,66 @@ class DBControl:
         return categorias
 
     @staticmethod
+    def get_categoria_por_id(id_categoria: int):
+        with SessionLocal() as db:
+            stmt = select(Categoria).where(Categoria.id == id_categoria)
+            categoria = db.scalar(stmt)
+            if categoria:
+                db.expunge(categoria)
+            return categoria
+
+    @staticmethod
+    def criar_categoria(nome: str, repete: bool = False):
+        try:
+            with SessionLocal() as db:
+                existe = db.scalar(select(Categoria).where(Categoria.categoria == nome))
+                if existe:
+                    return False, "Categoria já cadastrada."
+                nova_categoria = Categoria(
+                    categoria=nome,
+                    repete=repete
+                )
+                db.add(nova_categoria)
+                db.commit()
+                return True, "Categoria cadastrada com sucesso!"
+        except Exception as e:
+            return False, f"Erro ao criar categoria: {str(e)}"
+
+    @staticmethod
+    def atualizar_categoria(id_categoria: int, nome: str, repete: bool):
+        try:
+            with SessionLocal() as db:
+                categoria = db.scalar(select(Categoria).where(Categoria.id == id_categoria))
+                if categoria:
+                    if categoria.categoria != nome:
+                        existe = db.scalar(select(Categoria).where(Categoria.categoria == nome))
+                        if existe:
+                            return False, "Categoria com este nome já existe."
+                    categoria.categoria = nome
+                    categoria.repete = repete
+                    db.commit()
+                    return True, "Categoria atualizada com sucesso!"
+                return False, "Categoria não encontrada."
+        except Exception as e:
+            return False, f"Erro ao atualizar categoria: {str(e)}"
+
+    @staticmethod
+    def deletar_categoria(id_categoria: int):
+        try:
+            with SessionLocal() as db:
+                categoria = db.scalar(select(Categoria).where(Categoria.id == id_categoria))
+                if categoria:
+                    has_registros = db.scalar(select(Registro).where(Registro.category_id == id_categoria))
+                    if has_registros:
+                        return False, "Não é possível deletar a categoria pois existem registros associados a ela."
+                    db.delete(categoria)
+                    db.commit()
+                    return True, "Categoria deletada com sucesso!"
+                return False, "Categoria não encontrada."
+        except Exception as e:
+            return False, f"Erro ao deletar categoria: {str(e)}"
+
+    @staticmethod
     def get_all_classificacoes():
         with SessionLocal() as db:
             stmt = select(Classificacao)
@@ -151,7 +213,8 @@ class DBControl:
                     "senha": usuario.senha, # Para conferir se já tem senha ou não
                     "is_admin": usuario.is_admin,
                     "actived": usuario.actived,
-                    "deleted": usuario.deleted
+                    "deleted": usuario.deleted,
+                    "data_nascimento": usuario.data_nascimento
                 }
             return None
 
@@ -201,12 +264,13 @@ class DBControl:
                     "nome": usuario.nome,
                     "is_admin": usuario.is_admin,
                     "actived": usuario.actived,
-                    "deleted": usuario.deleted
+                    "deleted": usuario.deleted,
+                    "data_nascimento": usuario.data_nascimento
                 }
             return None
 
     @staticmethod
-    def criar_usuario(cpf: str, nome: str, senha: str = None, is_admin: bool = False):
+    def criar_usuario(cpf: str, nome: str, senha: str = None, is_admin: bool = False, data_nascimento: date = None):
         try:
             with SessionLocal() as db:
                 existe = db.scalar(select(Usuario).where(Usuario.cpf == cpf))
@@ -217,7 +281,8 @@ class DBControl:
                     cpf=cpf,
                     nome=nome,
                     senha=senha,
-                    is_admin=is_admin
+                    is_admin=is_admin,
+                    data_nascimento=data_nascimento
                 )
                 db.add(novo_usuario)
                 db.commit()

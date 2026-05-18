@@ -1,6 +1,8 @@
 import flet as ft
+from datetime import date
 from gears.db_control import DBControl
 from models.db_models import Usuario
+from views.crud_registros import DatePicker
 
 class ConfirmDialogUser(ft.AlertDialog):
     def __init__(self, usuario: Usuario, tipo_acao: str):
@@ -76,6 +78,10 @@ class FormUser(ft.AlertDialog):
         
         self.switch_admin = ft.Switch(label="Administrador", value=False, active_track_color=ft.Colors.BLUE_300)
         self.switch_ativo = ft.Switch(label="Ativo", value=True, active_track_color=ft.Colors.GREEN_300)
+        
+        self.switch_nascimento = ft.Switch(label="Informar Nascimento", value=False, active_track_color=ft.Colors.BLUE_300, on_change=self.__toggle_nascimento)
+        self.input_nascimento = DatePicker("Nascimento", value=date(2000, 1, 1))
+        self.input_nascimento.visible = False
 
         if self.data:
             self.input_cpf.value = self.data.cpf
@@ -83,6 +89,10 @@ class FormUser(ft.AlertDialog):
             self.input_senha.value = self.data.senha
             self.switch_admin.value = self.data.is_admin
             self.switch_ativo.value = self.data.actived
+            if self.data.data_nascimento:
+                self.switch_nascimento.value = True
+                self.input_nascimento.set_value(self.data.data_nascimento)
+                self.input_nascimento.visible = True
 
         if self.id_usuario: # UPDATE
             self.title = ft.Column(
@@ -107,7 +117,9 @@ class FormUser(ft.AlertDialog):
                     self.input_nome,
                     self.input_senha,
                     self.switch_admin,
-                    self.switch_ativo
+                    self.switch_ativo,
+                    self.switch_nascimento,
+                    self.input_nascimento
                 ]
             )
         )
@@ -117,6 +129,10 @@ class FormUser(ft.AlertDialog):
             ft.TextButton("Salvar", on_click=self.__save),
         ]
 
+    def __toggle_nascimento(self, e):
+        self.input_nascimento.visible = self.switch_nascimento.value
+        self.update()
+
     # 4. Funções importantes no final
     def __save(self, e: ft.ControlEvent):
         cpf = self.input_cpf.value
@@ -124,6 +140,7 @@ class FormUser(ft.AlertDialog):
         senha = self.input_senha.value
         is_admin = self.switch_admin.value
         actived = self.switch_ativo.value
+        data_nascimento = self.input_nascimento.current_date if self.switch_nascimento.value else None
 
         if not cpf or not nome:
             self.page.show_dialog(
@@ -132,9 +149,9 @@ class FormUser(ft.AlertDialog):
             return
 
         if self.id_usuario:
-            sucesso, msg = DBControl.atualizar_usuario(self.id_usuario, cpf, nome, senha, is_admin, actived)
+            sucesso, msg = DBControl.atualizar_usuario(self.id_usuario, cpf, nome, senha, is_admin, actived, data_nascimento)
         else:
-            sucesso, msg = DBControl.criar_usuario_completo(cpf, nome, senha, is_admin, actived)
+            sucesso, msg = DBControl.criar_usuario_completo(cpf, nome, senha, is_admin, actived, data_nascimento)
 
         if sucesso and self.on_save:
             self.on_save()
@@ -324,6 +341,25 @@ class CardUser(ft.Card):
                 )
             ),
         ]
+
+        if usuario.data_nascimento:
+            nasc_text = usuario.data_nascimento.strftime("%d/%m/%Y")
+            self.info.controls.append(
+                ft.Container(
+                    bgcolor=ft.Colors.SURFACE_BRIGHT,
+                    padding=ft.Padding.symmetric(horizontal=5, vertical=2),
+                    border_radius=ft.BorderRadius.all(8),
+                    border=ft.Border.all(1, ft.Colors.BLUE_GREY_300),
+                    height=30,
+                    content=ft.Row(
+                        tight=True,
+                        controls=[
+                            ft.Icon(ft.Icons.CAKE, size=14, color=ft.Colors.BLUE_GREY_300),
+                            ft.Text(nasc_text, size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK_54)
+                        ]
+                    )
+                )
+            )
 
     async def editar_user(self, e):
         self.page.show_dialog(self.edit_user_dialog)

@@ -1,7 +1,7 @@
-
 import flet as ft
 from views.crud_registros import *
 from views.crud_user import *
+from views.crud_categoria import *
 
 class Managment(ft.View):
     def __init__(self):
@@ -25,11 +25,15 @@ class Managment(ft.View):
         self.action_panel_users = ActionPanelUser()
         self.users_table = TabUsuarios()
 
+        self.action_panel_categorias = ActionPanelCategoria()
+        self.categorias_table = TabCategorias()
+
         self.abas = ft.TabBar(
             indicator_color=ft.Colors.AMBER_300,
             tabs=[
                 ft.Tab(label="Dividas", icon=ft.Icons.MONETIZATION_ON),
                 ft.Tab(label="Usuários", icon=ft.Icons.GROUP),
+                ft.Tab(label="Categorias", icon=ft.Icons.CATEGORY),
             ],
         )
 
@@ -38,14 +42,15 @@ class Managment(ft.View):
             expand=True,
             controls = [
                 ft.Column([self.action_panel_mngmt, self.registros_table], expand=True, margin=ft.Margin.only(top=20)),
-                ft.Column([self.action_panel_users, self.users_table], expand=True, margin=ft.Margin.only(top=20))
+                ft.Column([self.action_panel_users, self.users_table], expand=True, margin=ft.Margin.only(top=20)),
+                ft.Column([self.action_panel_categorias, self.categorias_table], expand=True, margin=ft.Margin.only(top=20))
             ],  
         )
 
         self.controls = [
             ft.Tabs(
                 selected_index=0,
-                length=2,
+                length=3,
                 align=ft.Alignment.TOP_CENTER,
                 expand=True,
                 content=ft.Column(
@@ -69,6 +74,11 @@ class Managment(ft.View):
         self.action_panel_users.dropdown_status.on_select = self.buscar_usuarios
         self.action_panel_users.btn_atualizar.on_click = self.atualizar_usuarios
         self.action_panel_users.new_user_dialog.on_save = self.atualizar_usuarios
+
+        self.action_panel_categorias.search.on_submit = self.buscar_categorias
+        self.action_panel_categorias.dropdown_tipo.on_select = self.buscar_categorias
+        self.action_panel_categorias.btn_atualizar.on_click = self.atualizar_categorias
+        self.action_panel_categorias.new_categoria_dialog.on_save = self.atualizar_categorias
 
     def buscar_dividas(self, e):
         query = self.action_panel_mngmt.search.value
@@ -96,6 +106,18 @@ class Managment(ft.View):
         self.action_panel_users.dropdown_status.value = "Todos"
         self.action_panel_users.dropdown_status.update()
         self.users_table.atualizar_lista()
+
+    def buscar_categorias(self, e):
+        query = self.action_panel_categorias.search.value
+        tipo = self.action_panel_categorias.dropdown_tipo.value
+        self.categorias_table.atualizar_lista(query, tipo)
+
+    def atualizar_categorias(self, e=None):
+        self.action_panel_categorias.search.value = ""
+        self.action_panel_categorias.search.update()
+        self.action_panel_categorias.dropdown_tipo.value = "Todas"
+        self.action_panel_categorias.dropdown_tipo.update()
+        self.categorias_table.atualizar_lista()
 
     async def logout(self, e):
         self.page.session.store.clear()
