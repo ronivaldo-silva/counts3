@@ -405,8 +405,9 @@ class DBControl:
             )
             
             if pendente:
-                classificacao_pendente = db.scalar(select(Classificacao.id).where(Classificacao.classificacao == "Pendente"))
-                stmt = stmt.where(Registro.classificacao_id == (classificacao_pendente if classificacao_pendente else 3))
+                classificacao_pago = db.scalar(select(Classificacao.id).where(Classificacao.classificacao == "Pago"))
+                pago_id = classificacao_pago if classificacao_pago is not None else 2
+                stmt = stmt.where(Registro.classificacao_id != pago_id)
             if vencimento:
                 stmt = stmt.where(Registro.data_prevista <= vencimento)
             
