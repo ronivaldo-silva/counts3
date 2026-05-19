@@ -15,7 +15,7 @@ import os
 load_dotenv()
 HOST = os.getenv("HOST", '0.0.0.0')
 PORT = int(os.getenv("PORT", '10000'))
-ASSETSPATH = os.getenv("ASSETSPATH", 'assets')
+ASSETSPATH = os.getenv("ASSETSPATH", 'assetsmy')
 ASAAS_WEBHOOK_TOKEN = os.getenv("ASAAS_WEBHOOK_TOKEN", "")
 
 # app = FastAPI()
@@ -112,4 +112,4 @@ if __name__ == "__main__":
     # Roda uma única vez na inicialização global do app
     seed_basic_data()
     
-    ft.run(main=main, view=ft.AppView.WEB_BROWSER, port=PORT)
+    ft.run(main=main, view=ft.AppView.WEB_BROWSER, port=PORT, assets_dir=ASSETSPATH)
