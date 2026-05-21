@@ -15,7 +15,8 @@ import os
 load_dotenv()
 HOST = os.getenv("HOST", '0.0.0.0')
 PORT = int(os.getenv("PORT", '10000'))
-ASSETSPATH = os.getenv("ASSETSPATH", 'assetsmy')
+ASSETSPATH = os.getenv("ASSETSPATH", 'assets')
+WEBVIEW = os.getenv("WEBVIEW", ft.AppView.WEB_BROWSER)
 ASAAS_WEBHOOK_TOKEN = os.getenv("ASAAS_WEBHOOK_TOKEN", "")
 
 # app = FastAPI()
@@ -39,7 +40,7 @@ async def main(page: ft.Page):
     page.title = "Counts3"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.window.icon = "favicon.png"
-    page.route
+    page.route = '/'
     # -- Rehidratação de Sessão --
     if not page.session.store.contains_key("user_cpf"):
         stored_cpf = None #await ft.SharedPreferences().get("user_cpf")
@@ -112,4 +113,4 @@ if __name__ == "__main__":
     # Roda uma única vez na inicialização global do app
     seed_basic_data()
     
-    ft.run(main=main, view=ft.AppView.WEB_BROWSER, port=PORT, assets_dir=ASSETSPATH)
+    ft.run(main=main, view=WEBVIEW, port=PORT, assets_dir=ASSETSPATH)

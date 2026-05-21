@@ -112,6 +112,7 @@ class FormUser(ft.AlertDialog):
         self.content = ft.Container(
             content=ft.Column(
                 tight=True,
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 controls=[
                     self.input_cpf,
                     self.input_nome,

@@ -86,3 +86,18 @@ class Registro(Base):
 
     def __repr__(self):
         return f"<Registro(id={self.id}, valor={self.valor}, type_id={self.type_id})>"
+
+
+class DividasByUser(Base):
+    __tablename__ = "dividas_by_user"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), unique=True, index=True, nullable=False)
+    registros_id: Mapped[str] = mapped_column(String(1000), nullable=False) # Lista de IDs serializada em JSON ou separada por vírgulas
+    last_update: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+    # Relacionamento
+    usuario: Mapped["Usuario"] = relationship("Usuario")
+
+    def __repr__(self):
+        return f"<DividasByUser(id={self.id}, user_id={self.user_id}, registros_id={self.registros_id})>"

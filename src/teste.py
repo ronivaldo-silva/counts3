@@ -1,58 +1,67 @@
 import flet as ft
 
+card_titulo = ft.Row(
+    alignment=ft.MainAxisAlignment.START,
+    controls=[
+        ft.Icon(ft.Icons.PEOPLE_ALT, color=ft.Colors.BLUE_300),
+        ft.Text("Titulo"),
+    ],
+)
 
-def showcase_card(mode: ft.GradientTileMode) -> ft.Container:
-    return ft.Container(
-        width=320,
-        padding=12,
-        border=ft.Border.all(1, ft.Colors.RED),
-        border_radius=10,
-        bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-        content=ft.Column(
-            spacing=8,
-            controls=[
-                ft.Text(mode.name, weight=ft.FontWeight.BOLD),
-                ft.Container(
-                    width=240,
-                    height=120,
-                    border=ft.Border.all(1, ft.Colors.OUTLINE),
-                    border_radius=8,
-                    gradient=ft.RadialGradient(
-                        radius=0.22,
-                        colors=[ft.Colors.PRIMARY, ft.Colors.AMBER_400],
-                        tile_mode=mode,
-                    ),
-                ),
-            ],
-        ),
+card_corpo = ft.Row(
+    alignment=ft.MainAxisAlignment.CENTER,
+    controls=[
+        ft.Text("Conteudo expressivo do cartão"),
+    ],
+)
+
+card_botoes = ft.Row(
+    alignment=ft.MainAxisAlignment.END,
+    controls=[
+        ft.IconButton(ft.Icons.EDIT, tooltip="Editar"),
+        ft.IconButton(ft.Icons.CANCEL, tooltip="Cancelar"),
+    ],
+)
+
+cartao = ft.Card(
+    width=400,
+    content=ft.Column(
+        controls=[
+            card_titulo,
+            ft.Divider(thickness=0.5),
+            card_corpo,
+            card_botoes,
+        ]
     )
+)
 
+dialog = ft.AlertDialog(
+    title=ft.Text("Titulo"),
+    content=ft.Text("Conteudo"),
+    actions=[
+        ft.TextButton("Cancelar", on_click=lambda e: e.control.page.pop_dialog()),
+        ft.TextButton("Salvar", on_click=lambda e: e.control.page.pop_dialog()),
+    ],
+)
 
 def main(page: ft.Page):
-    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+    page.window.width = 800
+    
+    cards = ft.Column(
+        tight=True,
+        width=400,
+        scroll=ft.ScrollMode.ALWAYS,
+        controls=[
+            cartao
+            for i in range(1000)
+        ]
+    )
 
-    page.appbar = ft.AppBar(title="GradientTileMode Showcase")
     page.add(
         ft.SafeArea(
-            content=ft.Column(
-                controls=[
-                    ft.Text(
-                        "Compare how gradients behave outside their defined "
-                        "paint region."
-                    ),
-                    ft.Row(
-                        wrap=True,
-                        spacing=12,
-                        expand=True,
-                        scroll=ft.ScrollMode.AUTO,
-                        alignment=ft.MainAxisAlignment.CENTER,
-                        controls=[showcase_card(mode) for mode in ft.GradientTileMode],
-                    ),
-                ],
-            ),
+            align=ft.Alignment.CENTER,
+            content=cards
         )
     )
 
-
-if __name__ == "__main__":
-    ft.run(main)
+ft.app(main)

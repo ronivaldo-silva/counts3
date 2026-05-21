@@ -495,3 +495,86 @@ class DBControl:
                 return False, "Registro não encontrado."
         except Exception as e:
             return False, f"Erro ao deletar registro: {str(e)}"
+
+    @staticmethod
+    def salvar_ou_atualizar_dividas_user(user_id: int, registros_ids: list[int]) -> int:
+        """
+        Salva ou atualiza a lista de IDs de registros pendentes associados ao usuário.
+        Retorna o ID da entrada criada/atualizada em dividas_by_user.
+        """
+        import json
+        from models.db_models import DividasByUser
+        from datetime import datetime
+        
+        registros_str = json.dumps(registros_ids)
+        
+        with SessionLocal() as db:
+            divida_user = db.scalar(select(DividasByUser).where(DividasByUser.user_id == user_id))
+            if divida_user:
+                divida_user.registros_id = registros_str
+                divida_user.last_update = datetime.now()
+                db.commit()
+                db.refresh(divida_user)
+                divida_id = divida_user.id
+            else:
+                nova_divida_user = DividasByUser(
+                    user_id=user_id,
+                    registros_id=registros_str,
+                    last_update=datetime.now()
+                )
+                db.add(nova_divida_user)
+                db.commit()
+                db.refresh(nova_divida_user)
+                divida_id = nova_divida_user.id
+                
+            return divida_id
+
+    @staticmethod
+    def remover_registro_da_divida_user(user_id: int, registro_id: int):
+        """
+        Remove o ID de um débito individual pago da lista de pendências do usuário na tabela dividas_by_user.
+        """
+        import json
+        from models.db_models import DividasByUser
+        
+        with SessionLocal() as db:
+            divida_user = db.scalar(select(DividasByUser).where(DividasByUser.user_id == user_id))
+            if divida_user and divida_user.registros_id:
+                try:
+                    ids = json.loads(divida_user.registros_id)
+                    if isinstance(ids, list) and registro_id in ids:
+                        ids.remove(registro_id)
+                        divida_user.registros_id = json.dumps(ids)
+                        db.commit()
+                except Exception as e:
+                    print(f"Erro ao remover registro da lista dividas_by_user: {e}")
+
+    @staticmethod
+    def quitar_divida_total_user(divida_by_user_id: int):
+        """
+        Carrega a lista de débitos associada a esta entrada total de dividas_by_user e
+        altera a classificação de todos eles para "Pago" (ID 2), zerando o saldo e limpando a lista.
+        """
+        import json
+        from models.db_models import DividasByUser, Registro, Classificacao
+        
+        with SessionLocal() as db:
+            divida_user = db.scalar(select(DividasByUser).where(DividasByUser.id == divida_by_user_id))
+            if divida_user and divida_user.registros_id:
+                try:
+                    ids = json.loads(divida_user.registros_id)
+                    if isinstance(ids, list):
+                        classificacao_pago = db.scalar(select(Classificacao).where(Classificacao.classificacao == "Pago"))
+                        pago_id = classificacao_pago.id if classificacao_pago else 2
+                        
+                        for rid in ids:
+                            registro = db.scalar(select(Registro).where(Registro.id == rid))
+                            if registro:
+                                registro.classificacao_id = pago_id
+                                registro.saldo = 0.0
+                        
+                        # Limpa os IDs já que todos foram pagos
+                        divida_user.registros_id = json.dumps([])
+                        db.commit()
+                except Exception as e:
+                    print(f"Erro ao quitar divida total do usuário: {e}")
