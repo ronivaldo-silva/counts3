@@ -90,6 +90,6 @@ class Asaas:
             addressKey=address_key,
             description=descricao_curta,
             value=valor,
-            expirationSeconds=60, # 60 segundos
+            expirationSeconds=600, # 10 minutos
             externalReference=id_divida
         )

@@ -459,52 +459,54 @@ class TabRegistros(ft.Column):
         self.page.show_dialog(pop_up)
         
         # Dispara o serviço para confirmar o pagamento total (externalReference id_divida_str)
-        self.page.run_task(self.servico_confirmacao_pagamento, id_divida_str, pop_up)
+        self.page.run_task(self.servico_confirmacao_pagamento, id_divida_str, pop_up, True)
         
-    async def servico_confirmacao_pagamento(self, id_divida: str, pop_up):
+    async def servico_confirmacao_pagamento(self, id_divida: str, pop_up, is_pgto_total: bool = False):
         import asyncio
-        await asyncio.sleep(60)
+        from database.config import SessionLocal
+        from models.db_models import Registro, DividasByUser
+        from sqlalchemy import select
+        
+        clean_id = id_divida.replace("cs3-", "") if id_divida.startswith("cs3-") else id_divida
         try:
-            resposta = Asaas._api.list_cobrancas(externalReference=id_divida)
-            status = "PENDING"
-            is_pgto_total = False
+            divida_id_int = int(clean_id)
+        except ValueError:
+            return
+
+        pagamento_confirmado = False
+        
+        # Polling de 10 minutos no banco local (60 iterações de 10 segundos)
+        for _ in range(60):
+            await asyncio.sleep(10)
             
-            if resposta and isinstance(resposta, dict) and resposta.get("data"):
-                for cob in resposta["data"]:
-                    if cob.get("status") in ["RECEIVED", "CONFIRMED"]:
-                        status = cob.get("status")
-                        desc = cob.get("description", "")
-                        if desc and "Pgto Total" in desc:
-                            is_pgto_total = True
+            with SessionLocal() as db:
+                if is_pgto_total:
+                    # Verifica se a lista de registros da dívida total foi limpa pelo Webhook
+                    divida_user = db.scalar(select(DividasByUser).where(DividasByUser.id == divida_id_int))
+                    if divida_user and (not divida_user.registros_id or divida_user.registros_id == "[]"):
+                        pagamento_confirmado = True
                         break
-            
-            if status in ["RECEIVED", "CONFIRMED"]:
+                else:
+                    # Verifica se o registro individual foi marcado como Pago (ID 2)
+                    registro = db.scalar(select(Registro).where(Registro.id == divida_id_int))
+                    if registro and registro.classificacao_id == 2:
+                        pagamento_confirmado = True
+                        break
+                        
+        if pagamento_confirmado:
+            try:
                 self.page.pop_dialog()
-                
-                try:
-                    clean_id = id_divida.replace("cs3-", "") if id_divida.startswith("cs3-") else id_divida
-                    if is_pgto_total:
-                        DBControl.quitar_divida_total_user(int(clean_id))
-                    else:
-                        DBControl.quitar_registro(int(clean_id))
-                        registro_quitado = DBControl.get_registro_por_id(int(clean_id))
-                        if registro_quitado:
-                            DBControl.remover_registro_da_divida_user(registro_quitado.user_id, registro_quitado.id)
-                    
-                    self.atualizar()
-                except ValueError:
-                    pass
-                
-                snack = ft.SnackBar(content=ft.Text("Pagamento confirmado com sucesso!"), bgcolor=ft.Colors.GREEN_600)
-                self.page.show_dialog(snack)
-            else:
+            except:
+                pass
+            self.atualizar()
+            snack = ft.SnackBar(content=ft.Text("Pagamento confirmado com sucesso!"), bgcolor=ft.Colors.GREEN_600)
+            self.page.show_dialog(snack)
+        else:
+            try:
                 self.page.pop_dialog()
-                snack = ft.SnackBar(content=ft.Text("O pagamento não foi realizado."), bgcolor=ft.Colors.ORANGE_500)
-                self.page.show_dialog(snack)
-                
-        except Exception as e:
-            self.page.pop_dialog()
-            snack = ft.SnackBar(content=ft.Text(f"Erro ao consultar status do pagamento: {e}."), bgcolor=ft.Colors.RED_500)
+            except:
+                pass
+            snack = ft.SnackBar(content=ft.Text("O PIX expirou ou o pagamento não foi identificado."), bgcolor=ft.Colors.ORANGE_500)
             self.page.show_dialog(snack)
 
     def pagar_divida(self, data: Registro):
@@ -610,7 +612,7 @@ class TabRegistros(ft.Column):
         self.page.show_dialog(pop_up)
         
         # Dispara o serviço para confirmar o pagamento da dívida
-        self.page.run_task(self.servico_confirmacao_pagamento, str(data.id), pop_up)
+        self.page.run_task(self.servico_confirmacao_pagamento, f"cs3-{data.id}", pop_up, False)
 
 
 # --- Registros do Asaas ---
