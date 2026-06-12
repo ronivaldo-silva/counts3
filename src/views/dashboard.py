@@ -72,40 +72,81 @@ class RegistroCard(ft.Card):
         valor = f"R$ {self.data.valor:,.2f}"
         data_divida = self.data.data_debito.strftime("%d/%m/%Y")
 
-        cor = ft.Colors.GREEN_300 if classificacao == "Pago" else ft.Colors.RED_300
-        
+        if classificacao == "Pago":
+            # UX para Pago: Cores verdes transmitindo paz e segurança
+            cor_status = ft.Colors.GREEN_600
+            self.color = ft.Colors.GREEN_50  # Fundo do card em verde suave
+            
+            # Estilização do botão
+            self.btn_pagar.disabled = True
+            self.btn_pagar.content = ft.Row([ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.Colors.GREEN_600), ft.Text("Pago", color=ft.Colors.GREEN_600)], tight=True)
+            self.btn_pagar.style = ft.ButtonStyle(
+                color=ft.Colors.GREEN_600,
+                bgcolor=ft.Colors.GREY_300,
+                side=ft.BorderSide(1, ft.Colors.GREEN_600),
+                elevation=0,
+            )
+            
+            # Elementos do cartão em verde
+            cor_borda_valor = ft.Colors.GREEN_300
+            cor_icone_valor = ft.Colors.GREEN_600
+            cor_borda_venc = ft.Colors.GREEN_300
+            cor_icone_venc = ft.Colors.GREEN_600
+            cor_texto_info = ft.Colors.GREEN_900
+            bg_container = ft.Colors.GREEN_100
+        else:
+            # UX para Pendente/Vencido: Cores normais (vermelho/laranja) para chamar atenção
+            cor_status = ft.Colors.RED_300
+            self.color = None  # Fundo do card padrão
+            
+            self.btn_pagar.disabled = False
+            self.btn_pagar.content = ft.Row([ft.Icon(ft.Icons.PAYMENT,), ft.Text("Pagar")], tight=True)
+            self.btn_pagar.style = ft.ButtonStyle(
+                color=ft.Colors.GREEN_600,
+                bgcolor=ft.Colors.WHITE,
+                side=ft.BorderSide(1, ft.Colors.GREEN_600),
+                elevation=2,
+            )
+            
+            cor_borda_valor = ft.Colors.RED_300
+            cor_icone_valor = ft.Colors.RED_400
+            cor_borda_venc = ft.Colors.ORANGE_300
+            cor_icone_venc = ft.Colors.ORANGE_400
+            cor_texto_info = ft.Colors.BLACK_87
+            bg_container = ft.Colors.SURFACE_BRIGHT
+
         self.titulo.controls = [
-            ft.Text(categoria, weight=ft.FontWeight.BOLD, size=15, selectable=True),
+            ft.Text(categoria, weight=ft.FontWeight.BOLD, size=15, selectable=True, color=cor_texto_info if classificacao == "Pago" else None),
             ft.Text("|", color=ft.Colors.BLUE_300, weight=ft.FontWeight.BOLD),
-            ft.Text(classificacao, size=13, color=cor, selectable=True),
+            ft.Text(classificacao, size=13, color=cor_status, selectable=True, weight=ft.FontWeight.BOLD if classificacao == "Pago" else None),
         ]
 
         self.info.controls = [
             ft.Container(
-                bgcolor=ft.Colors.SURFACE_BRIGHT,
+                bgcolor=bg_container,
                 padding=ft.Padding.symmetric(horizontal=8, vertical=4),
                 border_radius=ft.BorderRadius.all(8),
-                border=ft.Border.all(1, ft.Colors.RED_300),
+                border=ft.Border.all(1, cor_borda_valor),
                 height=32,
                 content=ft.Row(
                     tight=True,
                     controls= [
-                        ft.Icon(ft.Icons.ATTACH_MONEY, size=16, color=ft.Colors.RED_400),
-                        ft.Text(valor, size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK_87)
+                        ft.Icon(ft.Icons.ATTACH_MONEY, size=16, color=cor_icone_valor),
+                        ft.Text(valor, size=12, weight=ft.FontWeight.BOLD, color=cor_texto_info)
                     ],
                 )
             ),
             ft.Container(
-                bgcolor=ft.Colors.SURFACE_BRIGHT,
+                bgcolor=bg_container,
                 padding=ft.Padding.symmetric(horizontal=8, vertical=4),
                 border_radius=ft.BorderRadius.all(8),
-                border=ft.Border.all(1, ft.Colors.ORANGE_300),
+                border=ft.Border.all(1, cor_borda_venc),
                 height=32,
                 content=ft.Row(
                     tight=True,
                     controls=[
-                        ft.Icon(ft.Icons.CALENDAR_TODAY, size=16, color=ft.Colors.ORANGE_400),
-                        ft.Text(f"Vence: {data_divida}", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK_87)
+                        ft.Icon(ft.Icons.CALENDAR_TODAY, size=16, color=cor_icone_venc),
+                        ft.Text(f"Vence: {data_divida}", size=12, weight=ft.FontWeight.BOLD, color=cor_texto_info)
                     ],
                 )
             )
@@ -250,6 +291,7 @@ class TabRegistros(ft.Column):
                 if status in ["RECEIVED", "CONFIRMED"]:
                     try:
                         DBControl.quitar_registro(int(id_divida))
+                        DBControl.remover_registro_da_divida_user(divida.user_id, divida.id)
                         atualizou_algo = True
                     except Exception:
                         pass
@@ -262,37 +304,69 @@ class TabRegistros(ft.Column):
             self.page.show_dialog(snack)
 
     def carregar_dividas(self):
-        dividas_reais = DBControl.get_registros_por_cpf(self.cpf, pendente=True)
-        self.dividas_pendentes = dividas_reais if dividas_reais else []
+        todas_dividas = DBControl.get_registros_por_cpf(self.cpf, pendente=False)
+        todas_dividas = todas_dividas if todas_dividas else []
+        
+        # Filtra as dívidas pendentes e vencidas
+        dividas_pendentes = [
+            d for d in todas_dividas 
+            if d.classificacao_rel and d.classificacao_rel.classificacao in ["Pendente", "Vencido"]
+        ]
+        self.dividas_pendentes = dividas_pendentes
+        
+        # Filtra as dívidas pagas hoje (vencimento/débito era hoje e já foi pago)
+        hoje = datetime.now().date()
+        dividas_pagas_hoje = [
+            d for d in todas_dividas 
+            if d.classificacao_rel and d.classificacao_rel.classificacao == "Pago" and d.data_debito == hoje
+        ]
+        
+        # Combina ambas as listas
+        dividas_para_mostrar = dividas_pendentes + dividas_pagas_hoje
+        
+        # Atualiza ou cria a tabela dividas_by_user para o usuário
+        dividas_by_user_id = None
+        usuario = DBControl.get_usuario_por_cpf(self.cpf)
+        if usuario:
+            user_id = usuario["id"]
+            registros_ids = [d.id for d in dividas_pendentes]
+            try:
+                dividas_by_user_id = DBControl.salvar_ou_atualizar_dividas_user(user_id, registros_ids)
+            except Exception as e:
+                print(f"Erro ao salvar/atualizar dividas_by_user: {e}")
         
         self.controls = []
         
-        if not dividas_reais:
+        if not dividas_para_mostrar:
             self.controls.append(
                 ft.Container(
                     padding=20,
-                    content=ft.Text("Você não possui dívidas pendentes.", italic=True, color=ft.Colors.GREY_500)
+                    content=ft.Text("Você não possui dívidas pendentes ou pagas hoje.", italic=True, color=ft.Colors.GREY_500)
                 )
             )
         else:
             total_valor = 0
-            for d in dividas_reais:
-                total_valor += d.valor
-                # Filtrar apenas o que o usuário precisa pagar ou visualizar
+            for d in dividas_para_mostrar:
+                # O total_valor acumula apenas as pendentes/vencidas
+                if d in dividas_pendentes:
+                    total_valor += d.valor
+                
                 self.controls.append(RegistroCard(registro=d, on_pagar_click=self.pagar_divida))
             
-            # Adiciona o card de resumo total ao final da lista
-            self.controls.append(
-                RegistroTotalCard(
-                    dados={
-                        "valor": total_valor,
-                        "itens": len(dividas_reais),
-                        "titulo": "Resumo das Obrigações",
-                        "subtitulo": "Total Pendente"
-                    },
-                    on_pagar_click=self.pagar_tudo
+            # Adiciona o card de resumo total apenas se houver pendências
+            if dividas_pendentes:
+                self.controls.append(
+                    RegistroTotalCard(
+                        dados={
+                            "valor": total_valor,
+                            "itens": len(dividas_pendentes),
+                            "titulo": "Resumo das Obrigações",
+                            "subtitulo": "Total Pendente",
+                            "dividas_by_user_id": dividas_by_user_id
+                        },
+                        on_pagar_click=self.pagar_tudo
+                    )
                 )
-            )
         
         if self.on_dividas_loaded:
             self.on_dividas_loaded()
@@ -312,12 +386,16 @@ class TabRegistros(ft.Column):
         )
         self.page.show_dialog(loading_dialog)
 
-        descricao = f"Pgto.Total"[:37]
+        # Resgatar o ID da tabela dividas_by_user
+        dividas_by_user_id = dados.get("dividas_by_user_id")
+        id_divida_str = f"cs3-{dividas_by_user_id}" if dividas_by_user_id is not None else "cs3-777"
+
+        descricao = "Pgto Total"
         try:
             resultado = Asaas.gerar_pix_estatico(
                 valor=valor_total,
                 descricao=descricao,
-                id_divida="777"
+                id_divida=id_divida_str
             )
             self.page.pop_dialog()
         except:
@@ -380,8 +458,8 @@ class TabRegistros(ft.Column):
 
         self.page.show_dialog(pop_up)
         
-        # Dispara o serviço para confirmar o pagamento total (externalReference 777)
-        self.page.run_task(self.servico_confirmacao_pagamento, "777", pop_up)
+        # Dispara o serviço para confirmar o pagamento total (externalReference id_divida_str)
+        self.page.run_task(self.servico_confirmacao_pagamento, id_divida_str, pop_up)
         
     async def servico_confirmacao_pagamento(self, id_divida: str, pop_up):
         import asyncio
@@ -389,18 +467,30 @@ class TabRegistros(ft.Column):
         try:
             resposta = Asaas._api.list_cobrancas(externalReference=id_divida)
             status = "PENDING"
+            is_pgto_total = False
             
             if resposta and isinstance(resposta, dict) and resposta.get("data"):
                 for cob in resposta["data"]:
                     if cob.get("status") in ["RECEIVED", "CONFIRMED"]:
                         status = cob.get("status")
+                        desc = cob.get("description", "")
+                        if desc and "Pgto Total" in desc:
+                            is_pgto_total = True
                         break
             
             if status in ["RECEIVED", "CONFIRMED"]:
                 self.page.pop_dialog()
                 
                 try:
-                    DBControl.quitar_registro(int(id_divida))
+                    clean_id = id_divida.replace("cs3-", "") if id_divida.startswith("cs3-") else id_divida
+                    if is_pgto_total:
+                        DBControl.quitar_divida_total_user(int(clean_id))
+                    else:
+                        DBControl.quitar_registro(int(clean_id))
+                        registro_quitado = DBControl.get_registro_por_id(int(clean_id))
+                        if registro_quitado:
+                            DBControl.remover_registro_da_divida_user(registro_quitado.user_id, registro_quitado.id)
+                    
                     self.atualizar()
                 except ValueError:
                     pass
@@ -430,7 +520,7 @@ class TabRegistros(ft.Column):
             resultado = Asaas.gerar_pix_estatico(
                 valor=data.valor,
                 descricao=f"Pgto: {data.categoria_rel.categoria}",
-                id_divida=str(data.id)
+                id_divida=f"cs3-{data.id}"
             )
             self.page.pop_dialog() # Fecha o loading
         except Exception as e:
@@ -798,6 +888,49 @@ class TabRegistrosAsaas(ft.Column):
             self.controls = [ft.Text(f"Erro interno: {str(e)}", color=ft.Colors.RED)]
             self.update()
 
+class DialogTrocarSenha(ft.AlertDialog):
+    def __init__(self, user_cpf: str):
+        super().__init__()
+        self.user_cpf = user_cpf
+        
+        self.title = ft.Text("Trocar Senha", weight=ft.FontWeight.BOLD)
+        self.input_senha = ft.TextField(label="Nova Senha", password=True, can_reveal_password=True)
+        self.input_confirmar = ft.TextField(label="Confirmar Senha", password=True, can_reveal_password=True)
+        
+        self.content = ft.Column(
+            tight=True,
+            controls=[
+                self.input_senha,
+                self.input_confirmar
+            ]
+        )
+        self.actions = [
+            ft.TextButton("Cancelar", on_click=self._cancel),
+            ft.TextButton("Salvar", on_click=self._save)
+        ]
+        
+    def _cancel(self, e):
+        self.page.pop_dialog()
+        
+    def _save(self, e):
+        senha = self.input_senha.value
+        confirmar = self.input_confirmar.value
+        if not senha or not confirmar:
+            self.page.show_dialog(ft.SnackBar(content=ft.Text("Preencha as senhas!"), bgcolor=ft.Colors.RED_700))
+            return
+        if senha != confirmar:
+            self.page.show_dialog(ft.SnackBar(content=ft.Text("As senhas não conferem!"), bgcolor=ft.Colors.RED_700))
+            return
+            
+        sucesso = DBControl.atualizar_senha_usuario(self.user_cpf, senha)
+        
+        if sucesso:
+            self.page.pop_dialog()
+            self.page.show_dialog(ft.SnackBar(content=ft.Text("Senha alterada com sucesso!"), bgcolor=ft.Colors.GREEN_700))
+        else:
+            self.page.pop_dialog()
+            self.page.show_dialog(ft.SnackBar(content=ft.Text("Erro ao alterar senha!"), bgcolor=ft.Colors.RED_700))
+
 # --- View Principal ---
 class Dashboard(ft.View):
     """View do painel de controle do usuário, unificando dívidas comuns e Asaas."""
@@ -818,6 +951,8 @@ class Dashboard(ft.View):
                 nome_usuario = self.user_data.get('nome', 'Usuário')
                 titulo_texto = f"Olá, {nome_usuario}"
 
+        self.dialog_senha = DialogTrocarSenha(user_cpf=self.user_cpf)
+
         # Cabeçalho
         self.appbar = ft.AppBar(
             leading=ft.Icon(ft.Icons.DASHBOARD),
@@ -825,6 +960,11 @@ class Dashboard(ft.View):
             title=ft.Text(titulo_texto, weight=ft.FontWeight.W_500),
             bgcolor=ft.Colors.SURFACE_CONTAINER,
             actions=[
+                ft.IconButton(
+                    icon=ft.Icons.PASSWORD,
+                    tooltip="Trocar Senha",
+                    on_click=self.abrir_troca_senha
+                ),
                 ft.IconButton(
                     icon=ft.Icons.REFRESH, 
                     tooltip="Atualizar Dados",
@@ -883,6 +1023,9 @@ class Dashboard(ft.View):
             )
 
         self.controls = [self.tab_bars]
+
+    def abrir_troca_senha(self, e):
+        self.page.show_dialog(self.dialog_senha)
 
     def atualizar_tudo(self, e):
         """Dispara a atualização para ambas as listagens."""

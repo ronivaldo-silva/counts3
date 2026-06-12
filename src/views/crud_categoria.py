@@ -225,6 +225,8 @@ class CardCategoria(ft.Card):
         self.titulo.controls = [
             ft.Text(cat.categoria, weight=ft.FontWeight.BOLD, size=14, selectable=True),
         ]
+        
+        estatisticas = DBControl.get_estatisticas_categoria(cat.id)
 
         self.info.controls = [
             ft.Container(
@@ -242,6 +244,43 @@ class CardCategoria(ft.Card):
                 )
             ),
         ]
+        
+        self.info.controls.append(
+            ft.Container(
+                bgcolor=ft.Colors.SURFACE_BRIGHT,
+                padding=ft.Padding.symmetric(horizontal=5, vertical=2),
+                border_radius=ft.BorderRadius.all(8),
+                border=ft.Border.all(1, ft.Colors.PURPLE_300),
+                height=30,
+                content=ft.Row(
+                    tight=True,
+                    controls=[
+                        ft.Icon(ft.Icons.PEOPLE_ALT, size=14, color=ft.Colors.PURPLE_300),
+                        ft.Text(f"{estatisticas['qtd_pessoas']} Pessoas", size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK_54)
+                    ]
+                )
+            )
+        )
+        
+        for type_id, soma in estatisticas['soma_cartoes'].items():
+            if soma > 0:
+                soma_str = f"R$ {soma:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                self.info.controls.append(
+                    ft.Container(
+                        bgcolor=ft.Colors.SURFACE_BRIGHT,
+                        padding=ft.Padding.symmetric(horizontal=5, vertical=2),
+                        border_radius=ft.BorderRadius.all(8),
+                        border=ft.Border.all(1, ft.Colors.ORANGE_300),
+                        height=30,
+                        content=ft.Row(
+                            tight=True,
+                            controls=[
+                                ft.Icon(ft.Icons.CREDIT_CARD, size=14, color=ft.Colors.ORANGE_300),
+                                ft.Text(f"{soma_str}", size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK_54)
+                            ]
+                        )
+                    )
+                )
 
     async def editar_categoria(self, e):
         self.page.show_dialog(self.edit_dialog)
