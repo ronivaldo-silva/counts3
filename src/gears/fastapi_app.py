@@ -22,6 +22,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, HTTPException, Header
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 import flet.fastapi as flet_fastapi
 
@@ -154,7 +155,7 @@ async def asaas_webhook(
 
     # --- Processamento do Evento ---
     try:
-        WebhookControl.processar_evento(data)
+        await run_in_threadpool(WebhookControl.processar_evento, data)
     except Exception as e:
         # Loga o erro mas retorna 200 para evitar retentativas infinitas do Asaas
         logger.error(f"❌ Erro ao processar evento '{event}': {e}", exc_info=True)
