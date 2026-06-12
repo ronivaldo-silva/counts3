@@ -887,6 +887,49 @@ class TabRegistrosAsaas(ft.Column):
             self.controls = [ft.Text(f"Erro interno: {str(e)}", color=ft.Colors.RED)]
             self.update()
 
+class DialogTrocarSenha(ft.AlertDialog):
+    def __init__(self, user_cpf: str):
+        super().__init__()
+        self.user_cpf = user_cpf
+        
+        self.title = ft.Text("Trocar Senha", weight=ft.FontWeight.BOLD)
+        self.input_senha = ft.TextField(label="Nova Senha", password=True, can_reveal_password=True)
+        self.input_confirmar = ft.TextField(label="Confirmar Senha", password=True, can_reveal_password=True)
+        
+        self.content = ft.Column(
+            tight=True,
+            controls=[
+                self.input_senha,
+                self.input_confirmar
+            ]
+        )
+        self.actions = [
+            ft.TextButton("Cancelar", on_click=self._cancel),
+            ft.TextButton("Salvar", on_click=self._save)
+        ]
+        
+    def _cancel(self, e):
+        self.page.pop_dialog()
+        
+    def _save(self, e):
+        senha = self.input_senha.value
+        confirmar = self.input_confirmar.value
+        if not senha or not confirmar:
+            self.page.show_dialog(ft.SnackBar(content=ft.Text("Preencha as senhas!"), bgcolor=ft.Colors.RED_700))
+            return
+        if senha != confirmar:
+            self.page.show_dialog(ft.SnackBar(content=ft.Text("As senhas não conferem!"), bgcolor=ft.Colors.RED_700))
+            return
+            
+        sucesso = DBControl.atualizar_senha_usuario(self.user_cpf, senha)
+        
+        if sucesso:
+            self.page.pop_dialog()
+            self.page.show_dialog(ft.SnackBar(content=ft.Text("Senha alterada com sucesso!"), bgcolor=ft.Colors.GREEN_700))
+        else:
+            self.page.pop_dialog()
+            self.page.show_dialog(ft.SnackBar(content=ft.Text("Erro ao alterar senha!"), bgcolor=ft.Colors.RED_700))
+
 # --- View Principal ---
 class Dashboard(ft.View):
     """View do painel de controle do usuário, unificando dívidas comuns e Asaas."""
@@ -907,6 +950,8 @@ class Dashboard(ft.View):
                 nome_usuario = self.user_data.get('nome', 'Usuário')
                 titulo_texto = f"Olá, {nome_usuario}"
 
+        self.dialog_senha = DialogTrocarSenha(user_cpf=self.user_cpf)
+
         # Cabeçalho
         self.appbar = ft.AppBar(
             leading=ft.Icon(ft.Icons.DASHBOARD),
@@ -914,6 +959,11 @@ class Dashboard(ft.View):
             title=ft.Text(titulo_texto, weight=ft.FontWeight.W_500),
             bgcolor=ft.Colors.SURFACE_CONTAINER,
             actions=[
+                ft.IconButton(
+                    icon=ft.Icons.PASSWORD,
+                    tooltip="Trocar Senha",
+                    on_click=self.abrir_troca_senha
+                ),
                 ft.IconButton(
                     icon=ft.Icons.REFRESH, 
                     tooltip="Atualizar Dados",
@@ -972,6 +1022,9 @@ class Dashboard(ft.View):
             )
 
         self.controls = [self.tab_bars]
+
+    def abrir_troca_senha(self, e):
+        self.page.show_dialog(self.dialog_senha)
 
     def atualizar_tudo(self, e):
         """Dispara a atualização para ambas as listagens."""

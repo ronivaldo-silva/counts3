@@ -185,6 +185,32 @@ class DBControl:
             return False, f"Erro ao deletar categoria: {str(e)}"
 
     @staticmethod
+    def get_estatisticas_categoria(category_id: int):
+        with SessionLocal() as db:
+            classifs = db.scalars(select(Classificacao.id).where(Classificacao.classificacao.in_(["Pendente", "Vencido", "Parcial"]))).all()
+            if not classifs:
+                classifs = [1, 2, 4]
+            
+            stmt = select(Registro).where(
+                Registro.category_id == category_id,
+                Registro.classificacao_id.in_(classifs)
+            )
+            registros = db.scalars(stmt).all()
+            
+            soma_cartoes = {}
+            pessoas = set()
+            
+            for r in registros:
+                if r.saldo > 0:
+                    soma_cartoes[r.type_id] = soma_cartoes.get(r.type_id, 0.0) + r.saldo
+                    pessoas.add(r.user_id)
+            
+            return {
+                "soma_cartoes": soma_cartoes,
+                "qtd_pessoas": len(pessoas)
+            }
+
+    @staticmethod
     def get_all_classificacoes():
         with SessionLocal() as db:
             stmt = select(Classificacao)

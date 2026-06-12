@@ -1,14 +1,10 @@
 import flet as ft
-# from fastapi import FastAPI, Request, HTTPException, Header
-# import flet.fastapi as flet_fastapi
-# import uvicorn
 
 from views.login import Login
 from views.dashboard import Dashboard
 from views.managment import Managment
 from database.config import seed_basic_data
 from gears.db_control import DBControl
-# from gears.webhook_control import WebhookControl
 from dotenv import load_dotenv
 import os
 
@@ -17,25 +13,10 @@ HOST = os.getenv("HOST", '0.0.0.0')
 PORT = int(os.getenv("PORT", '10000'))
 ASSETSPATH = os.getenv("ASSETSPATH", 'assets')
 WEBVIEW = os.getenv("WEBVIEW", ft.AppView.WEB_BROWSER)
-ASAAS_WEBHOOK_TOKEN = os.getenv("ASAAS_WEBHOOK_TOKEN", "")
 
-# app = FastAPI()
-
-# @app.post("/webhook/asaas")
-# async def asaas_webhook(request: Request, asaas_access_token: str = Header(None)):
-#     # Valida Token (recomendado na documentação do Asaas)
-#     if ASAAS_WEBHOOK_TOKEN and asaas_access_token != ASAAS_WEBHOOK_TOKEN:
-#         raise HTTPException(status_code=401, detail="Token de autorizacao invalido")
-    
-#     try:
-#         data = await request.json()
-#         print(f"Webhook recebido: {data.get('event')}")
-#         WebhookControl.processar_evento(data)
-#         return {"status": "ok"}
-#     except Exception as e:
-#         print(f"Erro processando webhook: {e}")
-#         raise HTTPException(status_code=400, detail="Erro no processamento do webhook")
-
+# ---------------------------------------------------------------------------
+# Função principal do Flet (lógica de roteamento da UI)
+# ---------------------------------------------------------------------------
 async def main(page: ft.Page):
     page.title = "Counts3"
     page.theme_mode = ft.ThemeMode.LIGHT
@@ -43,7 +24,7 @@ async def main(page: ft.Page):
     page.route = '/'
     # -- Rehidratação de Sessão --
     if not page.session.store.contains_key("user_cpf"):
-        stored_cpf = None #await ft.SharedPreferences().get("user_cpf")
+        stored_cpf = None
         if stored_cpf:
             usuario = DBControl.get_usuario_por_cpf(stored_cpf)
             if usuario:
@@ -100,17 +81,28 @@ async def main(page: ft.Page):
             await page.push_route("/dashboard")
         else:
             await page.push_route("/login")
-    else: # Pagina não existente
-        # Ao chamar push_route, o route_change avaliará a segurança
+    else:
         await page.push_route(page.route)
 
-        # Criar página informativa com mensagem "Página não Existente"
 
-# app.mount("/", flet_fastapi.app(main))
+# ---------------------------------------------------------------------------
+# Modo WEB (produção) — app FastAPI exportado para o uvicorn
+#
+# Para rodar:
+#   cd src
+#   uvicorn main:app --host 0.0.0.0 --port 10000
+#
+# O endpoint de webhook ficará disponível em:
+#   POST  http://host:port/webhook/asaas
+#   GET   http://host:port/webhook/asaas/health
+# ---------------------------------------------------------------------------
+from gears.fastapi_app import criar_flet_app
+app = criar_flet_app(main)
 
+
+# ---------------------------------------------------------------------------
+# Modo LOCAL (desenvolvimento) — execução via 'flet run main.py'
+# ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    # Cria os recursos de banco locais e injeta dados básicos se virgem
-    # Roda uma única vez na inicialização global do app
     seed_basic_data()
-    
     ft.run(main=main, view=WEBVIEW, port=PORT, assets_dir=ASSETSPATH)
