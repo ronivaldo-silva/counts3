@@ -8,7 +8,9 @@ authors = [
     { name = "Ronivaldo Silva", email = "Ronivaldo.alpha@gmail.com" }
 ]
 dependencies = [
-    "flet=0.85.0"
+    "flet=0.85.0",
+    "fastapi",
+    "uvicorn[standard]"
 ]
 
 [dependency-groups]

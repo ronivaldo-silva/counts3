@@ -1,7 +1,7 @@
 import requests
 import json
 
-url = "https://www.tesourarianmvm.com.br/webhook/asaas"
+url = "http://localhost:10000/webhook/asaas"
 headers = {
     "Content-Type": "application/json",
     "asaas-access-token": "8d2f7cbca20e11894d7ab2f80c65de3b8893d7c5"
