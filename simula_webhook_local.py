@@ -12,13 +12,13 @@ payload = {
     "payment": {
         "id": "pay_simulated_9999",
         "customer": "cus_0000000000",
-        "value": 1,
-        "netValue": 1,
-        "originalValue": 1,
+        "value": 1500,
+        "netValue": 1500,
+        "originalValue": 1500,
         "status": "CONFIRMED",
-        "description": "Pgto: Big Loja",
+        "description": "Pgto: Dízimo",
         "billingType": "PIX",
-        "externalReference": "cs3-152",
+        "externalReference": "cs3-1",
         "pixTransaction": "00020126760014br.gov.bcb.pix01362fe9f5c4-3671-4543-87e7-bad41e4952ac0214Pgto: Big Loja52040000530398654041.005802BR5925CENTRO ESPIRITA BENEFICEN6006Manaus62290525NUCLEOME00000654796986ASA630498C8"
     }
 }
@@ -29,6 +29,6 @@ try:
     print(f"Status Code: {response.status_code}")
     print(f"Resposta: {response.text}")
 except requests.exceptions.ConnectionError:
-    print("O servidor local (localhost:10000) não parece estar rodando no momento.")
+    print("O servidor local (localhost:10001) não parece estar rodando no momento.")
 except Exception as e:
     print(f"Erro ao enviar requisição: {e}")

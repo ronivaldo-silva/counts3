@@ -1,3 +1,11 @@
+import sys
+import os
+
+# Adiciona o diretório 'src' ao sys.path para suportar execuções a partir do diretório raiz do projeto (como no Render)
+src_dir = os.path.dirname(os.path.abspath(__file__))
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
+
 import flet as ft
 
 from views.login import Login
@@ -6,7 +14,6 @@ from views.managment import Managment
 from database.config import seed_basic_data
 from gears.db_control import DBControl
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
 HOST = os.getenv("HOST", '0.0.0.0')
@@ -47,16 +54,16 @@ async def main(page: ft.Page):
             if logado_cpf:
                 page.views.append(Dashboard(cpf=logado_cpf))
             else:
-                await page.push_route("/login")
+                page.go("/login")
             
         elif troute.match("/managment"):
             if is_admin:
                 page.views.append(Managment())
             else:
-                await page.push_route("/login")
+                page.go("/login")
         
         else:
-            await page.push_route("/login")
+            page.go("/login")
             
         page.update()
 
@@ -64,9 +71,9 @@ async def main(page: ft.Page):
         if len(page.views) > 1:
             page.views.pop()
             top_view = page.views[-1]
-            await page.push_route(top_view.route)
+            page.go(top_view.route)
         else:
-            await page.push_route("/")
+            page.go("/")
 
     page.on_route_change = route_change
     page.on_view_pop = view_pop
@@ -76,13 +83,13 @@ async def main(page: ft.Page):
         logado_cpf = page.session.store.get("user_cpf")
         is_admin = page.session.store.get("is_admin")
         if is_admin:
-            await page.push_route("/managment")
+            page.go("/managment")
         elif logado_cpf:
-            await page.push_route("/dashboard")
+            page.go("/dashboard")
         else:
-            await page.push_route("/login")
+            page.go("/login")
     else:
-        await page.push_route(page.route)
+        page.go(page.route)
 
 
 # ---------------------------------------------------------------------------

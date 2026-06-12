@@ -272,35 +272,80 @@ class TabRegistros(ft.Column):
         self.page.run_task(self.verificar_pagamentos_pendentes)
 
     async def verificar_pagamentos_pendentes(self):
+        """
+        Método 1: Verifica ativamente no Asaas se as obrigações pendentes foram pagas.
+        Executado ao carregar/iniciar o Dashboard.
+        """
         if not self.dividas_pendentes:
             return
             
         atualizou_algo = False
-        for divida in list(self.dividas_pendentes):
-            id_divida = str(divida.id)
-            try:
-                resposta = Asaas._api.list_cobrancas(externalReference=id_divida)
-                status = "PENDING"
-                
-                if resposta and isinstance(resposta, dict) and resposta.get("data"):
-                    for cob in resposta["data"]:
-                        if cob.get("status") in ["RECEIVED", "CONFIRMED"]:
-                            status = cob.get("status")
-                            break
-                
-                if status in ["RECEIVED", "CONFIRMED"]:
-                    try:
-                        DBControl.quitar_registro(int(id_divida))
-                        DBControl.remover_registro_da_divida_user(divida.user_id, divida.id)
+        usuario = DBControl.get_usuario_por_cpf(self.cpf)
+        
+        if usuario:
+            user_id = usuario["id"]
+            
+            # 1. Tenta verificar se houve pagamento do montante acumulado ("Pagar Tudo")
+            from database.config import SessionLocal
+            from models.db_models import DividasByUser
+            from sqlalchemy import select
+            
+            dividas_by_user_id = None
+            with SessionLocal() as db:
+                divida_user = db.scalar(select(DividasByUser).where(DividasByUser.user_id == user_id))
+                if divida_user:
+                    dividas_by_user_id = divida_user.id
+                    
+            if dividas_by_user_id is not None:
+                try:
+                    # Consulta no Asaas a cobrança total usando o prefixo cs3-
+                    resposta_total = Asaas._api.list_cobrancas(externalReference=f"cs3-{dividas_by_user_id}")
+                    status_total = "PENDING"
+                    
+                    if resposta_total and isinstance(resposta_total, dict) and resposta_total.get("data"):
+                        for cob in resposta_total["data"]:
+                            if cob.get("status") in ["RECEIVED", "CONFIRMED"]:
+                                status_total = cob.get("status")
+                                break
+                    
+                    if status_total in ["RECEIVED", "CONFIRMED"]:
+                        # Quita todas as dívidas que faziam parte do pagamento total
+                        DBControl.quitar_divida_total_user(dividas_by_user_id)
                         atualizou_algo = True
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-                
+                except Exception as e:
+                    print(f"Erro ao verificar pagamento acumulado no Asaas: {e}")
+
+        # 2. Se não foi quitado via total (ou se o total não foi pago), verifica individualmente cada dívida
+        if not atualizou_algo:
+            for divida in list(self.dividas_pendentes):
+                id_divida = str(divida.id)
+                try:
+                    # Consulta a cobrança individual no Asaas usando o prefixo cs3-
+                    resposta = Asaas._api.list_cobrancas(externalReference=f"cs3-{id_divida}")
+                    status = "PENDING"
+                    
+                    if resposta and isinstance(resposta, dict) and resposta.get("data"):
+                        for cob in resposta["data"]:
+                            if cob.get("status") in ["RECEIVED", "CONFIRMED"]:
+                                status = cob.get("status")
+                                break
+                    
+                    if status in ["RECEIVED", "CONFIRMED"]:
+                        # Quita a dívida individualmente no banco de dados e remove-a da lista pendente
+                        DBControl.quitar_registro(int(id_divida))
+                        if usuario:
+                            DBControl.remover_registro_da_divida_user(usuario["id"], divida.id)
+                        atualizou_algo = True
+                except Exception as e:
+                    print(f"Erro ao verificar pagamento da divida {id_divida} no Asaas: {e}")
+                    
+        # Se algum registro foi modificado, atualiza a UI e informa o usuário via SnackBar
         if atualizou_algo:
             self.atualizar()
-            snack = ft.SnackBar(content=ft.Text("Pagamentos pendentes foram atualizados automaticamente."), bgcolor=ft.Colors.GREEN_600)
+            snack = ft.SnackBar(
+                content=ft.Text("Pagamentos pendentes foram atualizados automaticamente."),
+                bgcolor=ft.Colors.GREEN_600
+            )
             self.page.show_dialog(snack)
 
     def carregar_dividas(self):
@@ -462,6 +507,10 @@ class TabRegistros(ft.Column):
         self.page.run_task(self.servico_confirmacao_pagamento, id_divida_str, pop_up, True)
         
     async def servico_confirmacao_pagamento(self, id_divida: str, pop_up, is_pgto_total: bool = False):
+        """
+        Método 2: Polling de confirmação de pagamento Pix por até 10 minutos (300 iterações de 2 segundos).
+        Consome o banco local a cada 2s e consulta a API Asaas a cada 10s para não exceder limites.
+        """
         import asyncio
         from database.config import SessionLocal
         from models.db_models import Registro, DividasByUser
@@ -473,40 +522,77 @@ class TabRegistros(ft.Column):
         except ValueError:
             return
 
+        usuario = DBControl.get_usuario_por_cpf(self.cpf)
+        user_id = usuario["id"] if usuario else None
         pagamento_confirmado = False
         
-        # Polling de 10 minutos no banco local (60 iterações de 10 segundos)
-        for _ in range(60):
-            await asyncio.sleep(10)
-            
+        # 300 iterações de 2 segundos = 10 minutos de polling total
+        for i in range(300):
+            # 1. Rápida checagem local: verifica se o webhook já alterou no banco de dados local
             with SessionLocal() as db:
                 if is_pgto_total:
-                    # Verifica se a lista de registros da dívida total foi limpa pelo Webhook
+                    # Para total, o webhook limpa registros_id para []
                     divida_user = db.scalar(select(DividasByUser).where(DividasByUser.id == divida_id_int))
                     if divida_user and (not divida_user.registros_id or divida_user.registros_id == "[]"):
                         pagamento_confirmado = True
                         break
                 else:
-                    # Verifica se o registro individual foi marcado como Pago (ID 2)
+                    # Para individual, verifica se a classificação_id mudou para Pago (2)
                     registro = db.scalar(select(Registro).where(Registro.id == divida_id_int))
                     if registro and registro.classificacao_id == 2:
                         pagamento_confirmado = True
                         break
-                        
+
+            # 2. Consulta ativa fallback: consulta a API do Asaas diretamente a cada 10 segundos (a cada 5 loops)
+            if i % 5 == 0:
+                try:
+                    # Busca as cobranças com o id_divida original (ex: cs3-152)
+                    resposta = Asaas._api.list_cobrancas(externalReference=id_divida)
+                    status = "PENDING"
+                    
+                    if resposta and isinstance(resposta, dict) and resposta.get("data"):
+                        for cob in resposta["data"]:
+                            if cob.get("status") in ["RECEIVED", "CONFIRMED"]:
+                                status = cob.get("status")
+                                break
+                    
+                    if status in ["RECEIVED", "CONFIRMED"]:
+                        # Se confirmado no Asaas, realiza a quitação localmente
+                        if is_pgto_total:
+                            DBControl.quitar_divida_total_user(divida_id_int)
+                        else:
+                            DBControl.quitar_registro(divida_id_int)
+                            if user_id:
+                                DBControl.remover_registro_da_divida_user(user_id, divida_id_int)
+                                
+                        pagamento_confirmado = True
+                        break
+                except Exception as e:
+                    print(f"Erro ao consultar confirmação de pagamento no Asaas: {e}")
+
+            await asyncio.sleep(2)
+            
+        # Nos casos de confirmação, fecha o diálogo do QR Code Pix e avisa via SnackBar
         if pagamento_confirmado:
             try:
                 self.page.pop_dialog()
-            except:
+            except Exception:
                 pass
             self.atualizar()
-            snack = ft.SnackBar(content=ft.Text("Pagamento confirmado com sucesso!"), bgcolor=ft.Colors.GREEN_600)
+            snack = ft.SnackBar(
+                content=ft.Text("Pagamento confirmado com sucesso!"), 
+                bgcolor=ft.Colors.GREEN_600
+            )
             self.page.show_dialog(snack)
         else:
             try:
                 self.page.pop_dialog()
-            except:
+            except Exception:
                 pass
-            snack = ft.SnackBar(content=ft.Text("O PIX expirou ou o pagamento não foi identificado."), bgcolor=ft.Colors.ORANGE_500)
+            snack = ft.SnackBar(
+                content=ft.Text("O PIX expirou ou o pagamento não foi identificado."), 
+                bgcolor=ft.Colors.ORANGE_500
+            )
             self.page.show_dialog(snack)
 
     def pagar_divida(self, data: Registro):
