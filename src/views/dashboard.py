@@ -388,7 +388,7 @@ class TabRegistros(ft.Column):
 
         # Resgatar o ID da tabela dividas_by_user
         dividas_by_user_id = dados.get("dividas_by_user_id")
-        id_divida_str = str(dividas_by_user_id) if dividas_by_user_id is not None else "777"
+        id_divida_str = f"cs3-{dividas_by_user_id}" if dividas_by_user_id is not None else "cs3-777"
 
         descricao = "Pgto Total"
         try:
@@ -482,11 +482,12 @@ class TabRegistros(ft.Column):
                 self.page.pop_dialog()
                 
                 try:
+                    clean_id = id_divida.replace("cs3-", "") if id_divida.startswith("cs3-") else id_divida
                     if is_pgto_total:
-                        DBControl.quitar_divida_total_user(int(id_divida))
+                        DBControl.quitar_divida_total_user(int(clean_id))
                     else:
-                        DBControl.quitar_registro(int(id_divida))
-                        registro_quitado = DBControl.get_registro_por_id(int(id_divida))
+                        DBControl.quitar_registro(int(clean_id))
+                        registro_quitado = DBControl.get_registro_por_id(int(clean_id))
                         if registro_quitado:
                             DBControl.remover_registro_da_divida_user(registro_quitado.user_id, registro_quitado.id)
                     
@@ -519,7 +520,7 @@ class TabRegistros(ft.Column):
             resultado = Asaas.gerar_pix_estatico(
                 valor=data.valor,
                 descricao=f"Pgto: {data.categoria_rel.categoria}",
-                id_divida=str(data.id)
+                id_divida=f"cs3-{data.id}"
             )
             self.page.pop_dialog() # Fecha o loading
         except Exception as e:
