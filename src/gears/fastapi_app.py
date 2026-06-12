@@ -176,20 +176,42 @@ async def asaas_webhook(
 
 
 # ---------------------------------------------------------------------------
-# Montagem do App Flet na raiz "/"
-# — deve ser o ÚLTIMO mount para não conflitar com as rotas da API
+# Montagem do App Flet em "/ui"
+# — separado dos endpoints FastAPI para que /webhook/asaas não seja interceptado
+# — O Flet montado em "/" sobrepõe TODOS os endpoints FastAPI com Method Not Allowed
 # ---------------------------------------------------------------------------
 def criar_flet_app(main_callable):
     """
     Monta o app Flet no FastAPI e retorna o app pronto para o uvicorn.
     Chamado pelo main.py após importar a função 'main' do Flet.
+
+    IMPORTANTE: O Flet é montado em "/ui" para que as rotas da API FastAPI
+    (como POST /webhook/asaas) não sejam interceptadas pelo sub-app Starlette do Flet.
     """
     assets_dir = os.path.abspath(ASSETS_PATH)
     app.mount(
-        "/",
+        "/ui",
         flet_fastapi.app(
             main_callable,
             assets_dir=assets_dir,
+            proxy_path="/ui",
         ),
     )
+
+    # Redireciona a raiz "/" e "/login", "/dashboard" etc para "/ui"
+    from fastapi.responses import RedirectResponse
+
+    @app.get("/", include_in_schema=False)
+    async def root_redirect():
+        return RedirectResponse(url="/ui")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    async def catch_all_redirect(path: str):
+        # Deixa rotas da API e do Flet (/ui) passarem sem redirecionar
+        api_prefixes = ("webhook", "docs", "openapi", "redoc", "ui")
+        if any(path.startswith(p) for p in api_prefixes):
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404)
+        return RedirectResponse(url=f"/ui/{path}")
+
     return app
