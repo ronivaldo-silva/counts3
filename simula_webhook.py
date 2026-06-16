@@ -12,13 +12,13 @@ payload = {
     "payment": {
         "id": "pay_simulated_9999",
         "customer": "cus_0000000000",
-        "value": 41.00,
-        "netValue": 40.01,
-        "originalValue": 41.00,
+        "value": 1000,
+        "netValue": 1000,
+        "originalValue": 1000,
         "status": "CONFIRMED",
         "description": "Pgto: Big Loja",
         "billingType": "PIX",
-        "externalReference": "cs3-152",
+        "externalReference": "cs3-5",
         "pixTransaction": "00020126760014br.gov.bcb.pix01362fe9f5c4-3671-4543-87e7-bad41e4952ac0214Pgto: Big Loja52040000530398654041.005802BR5925CENTRO ESPIRITA BENEFICEN6006Manaus62290525NUCLEOME00000654796986ASA630498C8"
     }
 }
