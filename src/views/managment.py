@@ -38,12 +38,12 @@ class Managment(ft.View):
         )
 
         self.abas_views = ft.TabBarView(
-            margin=ft.Margin.all(10),
+            margin=ft.Margin.only(left=10, right=10, top=5),
             expand=True,
             controls = [
-                ft.Column([self.action_panel_mngmt, self.registros_table], expand=True, margin=ft.Margin.only(top=20)),
-                ft.Column([self.action_panel_users, self.users_table], expand=True, margin=ft.Margin.only(top=20)),
-                ft.Column([self.action_panel_categorias, self.categorias_table], expand=True, margin=ft.Margin.only(top=20))
+                ft.Column([self.action_panel_mngmt, self.registros_table], expand=True),
+                ft.Column([self.action_panel_users, self.users_table], expand=True),
+                ft.Column([self.action_panel_categorias, self.categorias_table], expand=True)
             ],  
         )
 

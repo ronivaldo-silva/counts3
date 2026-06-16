@@ -326,6 +326,8 @@ class ActionPanel(ft.Container):
         self.dropdown_categoria = ft.Dropdown(
             label="Categoria",
             menu_height=300,
+            width=150,
+            height=40,
             options=[ft.DropdownOption(text="Todas", key="Todas")] + [
                 ft.DropdownOption(text=c.categoria, key=str(c.id)) for c in DBControl.get_all_categorias()
             ],
@@ -335,6 +337,8 @@ class ActionPanel(ft.Container):
         self.dropdown_classificacao = ft.Dropdown(
             label="Classificação",
             menu_height=300,
+            width=150,
+            height=40,
             options=[ft.DropdownOption(text="Todas", key="Todas")] + [
                 ft.DropdownOption(text=c.classificacao, key=str(c.id)) for c in DBControl.get_all_classificacoes()
             ],

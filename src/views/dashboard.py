@@ -575,9 +575,29 @@ class TabRegistros(ft.Column):
         # Nos casos de confirmação, fecha o diálogo do QR Code Pix e avisa via SnackBar
         if pagamento_confirmado:
             try:
+                # Atualiza a interface do popup para mostrar Sucesso
+                pop_up.title = ft.Row([ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.Colors.GREEN_600), ft.Text("Sucesso", color=ft.Colors.GREEN_600)], tight=True)
+                pop_up.content = ft.Column(
+                    width=300,
+                    height=250,
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    tight=True,
+                    controls=[
+                        ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.Colors.GREEN_600, size=100),
+                        ft.Text("Pagamento Confirmado!", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700, text_align=ft.TextAlign.CENTER),
+                        ft.Text("Processando ...", size=10, color=ft.Colors.GREY_600)
+                    ]
+                )
+                pop_up.actions = [] # Oculta os botões de copiar/fechar
+                pop_up.update()
+                
+                # Aguarda 3 segundos para o usuário ler a mensagem
+                await asyncio.sleep(3)
                 self.page.pop_dialog()
             except Exception:
                 pass
+            
             self.atualizar()
             snack = ft.SnackBar(
                 content=ft.Text("Pagamento confirmado com sucesso!"), 
